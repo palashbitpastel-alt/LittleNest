@@ -1,0 +1,352 @@
+{% comment %}
+  Lookbook — product photography arranged as a magazine spread rather than a
+  grid of equal boxes.
+
+  Images come straight from a collection, so it fills with real photography the
+  moment a collection is chosen and stays current as stock changes. Frames are
+  deliberately uneven and slightly offset from one another: a lookbook page is
+  laid out by eye, and a perfectly regular grid reads as a catalogue.
+
+  Every frame is still a link to the product, so the page is shoppable even
+  though it is styled to be browsed.
+{% endcomment %}
+
+{%- liquid
+  assign source = section.settings.collection
+  if source.title == blank and source != blank
+    assign source = collections[source]
+  endif
+
+  assign limit = section.settings.image_count
+  assign items = source.products | slice: 0, limit
+-%}
+
+{%- if items.size > 0 -%}
+  <div
+    class="pl-look"
+    style="
+      --pl-sand: {{ section.settings.accent_color }};
+      --pl-ink: {{ section.settings.text_color }};
+      --pl-bg: {{ section.settings.background_color }};
+      --pl-pad-start: {{ section.settings.padding_block_start }}px;
+      --pl-pad-end: {{ section.settings.padding_block_end }}px;
+    "
+  >
+    <div class="pl-look__inner">
+      <header class="pl-look__head">
+        {%- if section.settings.eyebrow != blank -%}
+          <p class="pl-look__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+        {%- endif -%}
+        {%- if section.settings.heading != blank -%}
+          <h2 class="pl-look__heading">{{ section.settings.heading | escape }}</h2>
+        {%- endif -%}
+        {%- if section.settings.subheading != blank -%}
+          <p class="pl-look__sub">{{ section.settings.subheading | escape }}</p>
+        {%- endif -%}
+      </header>
+
+      <div class="pl-look__grid">
+        {%- for item in items -%}
+          {%- assign image = item.featured_image -%}
+          {%- if image -%}
+            <a class="pl-look__frame" href="{{ item.url }}">
+              <img
+                class="pl-look__img"
+                src="{{ image | image_url: width: 900 }}"
+                srcset="
+                  {{ image | image_url: width: 400 }} 400w,
+                  {{ image | image_url: width: 700 }} 700w,
+                  {{ image | image_url: width: 1100 }} 1100w
+                "
+                sizes="(min-width: 750px) 34vw, 46vw"
+                alt="{{ image.alt | default: item.title | escape }}"
+                width="{{ image.width }}"
+                height="{{ image.height }}"
+                loading="lazy"
+              >
+
+              <span class="pl-look__tag">
+                <span class="pl-look__name">{{ item.title | escape }}</span>
+                {%- if section.settings.show_price -%}
+                  <span class="pl-look__price">{{ item.price | money }}</span>
+                {%- endif -%}
+              </span>
+            </a>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+
+      {%- if section.settings.link_label != blank -%}
+        <div class="pl-look__foot">
+          <a class="pl-look__btn" href="{{ section.settings.link_url | default: source.url }}">
+            {{ section.settings.link_label | escape }}
+          </a>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pl-look {
+    background: var(--pl-bg);
+    color: var(--pl-ink);
+    padding-block: var(--pl-pad-start) var(--pl-pad-end);
+  }
+
+  .pl-look__inner {
+    width: 100%;
+    max-width: var(--page-width, 1400px);
+    margin-inline: auto;
+    padding-inline: var(--page-margin, 20px);
+  }
+
+  .pl-look__head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    text-align: center;
+    max-inline-size: 54ch;
+    margin-inline: auto;
+    margin-block-end: clamp(2rem, 4vw, 3.25rem);
+  }
+
+  .pl-look__eyebrow {
+    margin: 0;
+    font-size: var(--font-size--xs, 0.8125rem);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 55%, transparent);
+  }
+
+  .pl-look__heading {
+    margin: 0;
+    font-family: var(--font-h2--family, inherit);
+    font-size: clamp(1.75rem, 3.4vw, 2.8rem);
+    font-weight: var(--font-h2--weight, 500);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+  }
+
+  .pl-look__sub {
+    margin: 0;
+    font-size: var(--font-size--md, 1rem);
+    line-height: 1.6;
+    color: color-mix(in srgb, var(--pl-ink) 66%, transparent);
+    text-wrap: pretty;
+  }
+
+  /* Twelve columns so frames can take uneven widths (5+4+3, then 4+5+3) and
+     still meet at a shared edge. */
+  .pl-look__grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: clamp(0.75rem, 1.6vw, 1.5rem);
+    align-items: start;
+  }
+
+  .pl-look__frame {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--pl-sand) 30%, transparent);
+    text-decoration: none;
+    color: inherit;
+    grid-column: span 4;
+    aspect-ratio: 3 / 4;
+  }
+
+  /* The stagger. Each frame in the run of six takes a different width and sits
+     at a slightly different height, which is what stops it reading as a table. */
+  .pl-look__frame:nth-child(6n + 1) { grid-column: span 5; aspect-ratio: 4 / 5; }
+  .pl-look__frame:nth-child(6n + 2) { grid-column: span 4; aspect-ratio: 1 / 1; margin-block-start: clamp(1rem, 3vw, 2.75rem); }
+  .pl-look__frame:nth-child(6n + 3) { grid-column: span 3; aspect-ratio: 3 / 4; }
+  .pl-look__frame:nth-child(6n + 4) { grid-column: span 4; aspect-ratio: 3 / 4; }
+  .pl-look__frame:nth-child(6n + 5) { grid-column: span 5; aspect-ratio: 4 / 3; margin-block-start: clamp(1rem, 3vw, 2.75rem); }
+  .pl-look__frame:nth-child(6n + 6) { grid-column: span 3; aspect-ratio: 1 / 1; }
+
+  .pl-look__img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+    display: block;
+    transition: transform 0.75s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  .pl-look__frame:hover .pl-look__img { transform: scale(1.05); }
+
+  .pl-look__frame::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: 45%;
+    background: linear-gradient(to top, rgb(20 18 16 / 0.6), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .pl-look__frame:hover::after,
+  .pl-look__frame:focus-visible::after { opacity: 1; }
+
+  /* The name only appears on approach, so the spread stays photographic. */
+  .pl-look__tag {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.9rem 1rem;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .pl-look__frame:hover .pl-look__tag,
+  .pl-look__frame:focus-visible .pl-look__tag {
+    opacity: 1;
+    transform: none;
+  }
+
+  .pl-look__name {
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .pl-look__price {
+    font-size: var(--font-size--xs, 0.8125rem);
+    color: rgb(255 255 255 / 0.82);
+  }
+
+  .pl-look__frame:focus-visible {
+    outline: 2px solid var(--pl-ink);
+    outline-offset: 3px;
+  }
+
+  /* ── Footer link ────────────────────────────────── */
+  .pl-look__foot {
+    display: flex;
+    justify-content: center;
+    margin-block-start: clamp(2rem, 4vw, 3rem);
+  }
+
+  .pl-look__btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.9rem 2.1rem;
+    border: 1px solid var(--pl-ink);
+    border-radius: 999px;
+    color: var(--pl-ink);
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background-color 0.22s ease, color 0.22s ease;
+  }
+
+  .pl-look__btn:hover {
+    background: var(--pl-ink);
+    color: var(--pl-bg);
+  }
+
+  .pl-look__btn:focus-visible {
+    outline: 2px solid var(--pl-ink);
+    outline-offset: 3px;
+  }
+
+  @media screen and (max-width: 749px) {
+    .pl-look__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.6rem;
+    }
+
+    /* The stagger does not survive two columns, so everything squares up. */
+    .pl-look__frame,
+    .pl-look__frame:nth-child(6n + 1),
+    .pl-look__frame:nth-child(6n + 2),
+    .pl-look__frame:nth-child(6n + 3),
+    .pl-look__frame:nth-child(6n + 4),
+    .pl-look__frame:nth-child(6n + 5),
+    .pl-look__frame:nth-child(6n + 6) {
+      grid-column: span 1;
+      aspect-ratio: 3 / 4;
+      margin-block-start: 0;
+    }
+
+    /* Touch has no hover, so the name is simply always on. */
+    .pl-look__tag { opacity: 1; transform: none; }
+    .pl-look__frame::after { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pl-look__img, .pl-look__tag, .pl-look__frame::after, .pl-look__btn {
+      transition: none;
+    }
+    .pl-look__frame:hover .pl-look__img { transform: none; }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Lookbook",
+  "tag": "section",
+  "class": "pl-look-section",
+  "disabled_on": { "groups": ["header", "footer"] },
+  "settings": [
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection",
+      "info": "Photography is taken from these products."
+    },
+    {
+      "type": "range",
+      "id": "image_count",
+      "label": "How many frames",
+      "min": 3, "max": 12, "step": 1,
+      "default": 6
+    },
+    { "type": "checkbox", "id": "show_price", "label": "Show the price on hover", "default": true },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Spring Summer" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "The lookbook" },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Linens, smocking and soft leather — photographed on the children who actually wear them."
+    },
+    { "type": "text", "id": "link_label", "label": "Button label", "default": "Shop the collection" },
+    {
+      "type": "url",
+      "id": "link_url",
+      "label": "Button link",
+      "info": "Defaults to the collection above."
+    },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background_color", "label": "Background", "default": "#ffffff" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2b2926" },
+    { "type": "color", "id": "accent_color", "label": "Accent", "default": "#d8c9b6" },
+    { "type": "header", "content": "Padding" },
+    {
+      "type": "range", "id": "padding_block_start", "label": "Top",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 88
+    },
+    {
+      "type": "range", "id": "padding_block_end", "label": "Bottom",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 88
+    }
+  ],
+  "presets": [{ "name": "Lookbook", "category": "Storytelling" }]
+}
+{% endschema %}

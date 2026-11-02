@@ -1,0 +1,339 @@
+{% comment %}
+  Ask the stylist — the band that puts the AI assistant to work.
+
+  The launcher in the corner is easy to ignore. This is the same assistant,
+  asked at the moment a shopper is most likely to be stuck: they like the
+  clothes, they do not know what size a nearly-three-year-old takes, and they
+  are one unanswered question away from closing the tab.
+
+  So the prompts are written out for them. Tapping one opens the chat with that
+  question already asked, which is a much smaller ask than an empty composer.
+
+  Ground and text are the chat's own accent pair, so the band reads as the
+  assistant speaking rather than as an advert for it.
+{% endcomment %}
+
+{%- liquid
+  assign prompts = ''
+  for i in (1..3)
+    assign key = 'prompt_' | append: i
+    if section.settings[key] != blank
+      assign prompts = prompts | append: i | append: ','
+    endif
+  endfor
+  assign prompts = prompts | split: ','
+-%}
+
+<script src="{{ 'pl-ask-stylist.js' | asset_url }}" defer></script>
+
+<ask-stylist
+  class="pl-stylist"
+  data-fallback="{{ section.settings.fallback_url | default: '/pages/contact' }}"
+  style="
+    --pl-sand: {{ section.settings.background_color }};
+    --pl-ink: {{ section.settings.text_color }};
+    --pl-pad-start: {{ section.settings.padding_block_start }}px;
+    --pl-pad-end: {{ section.settings.padding_block_end }}px;
+  "
+>
+  <div class="pl-stylist__inner">
+    <div class="pl-stylist__copy">
+      {%- if section.settings.eyebrow != blank -%}
+        <p class="pl-stylist__eyebrow">
+          <span class="pl-stylist__dot" aria-hidden="true"></span>
+          {{ section.settings.eyebrow | escape }}
+        </p>
+      {%- endif -%}
+
+      {%- if section.settings.heading != blank -%}
+        <h2 class="pl-stylist__heading">{{ section.settings.heading | escape }}</h2>
+      {%- endif -%}
+
+      {%- if section.settings.text != blank -%}
+        <p class="pl-stylist__text">{{ section.settings.text | escape }}</p>
+      {%- endif -%}
+
+      {%- if section.settings.button_label != blank -%}
+        <button type="button" class="pl-stylist__btn" data-ask="">
+          {{ section.settings.button_label | escape }}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+        </button>
+      {%- endif -%}
+    </div>
+
+    {%- if prompts.size > 0 -%}
+      <div class="pl-stylist__prompts">
+        <p class="pl-stylist__promptlabel">{{ section.settings.prompts_label | escape }}</p>
+        <ul class="pl-stylist__list">
+          {%- for i in prompts -%}
+            {%- assign key = 'prompt_' | append: i -%}
+            <li>
+              <button
+                type="button"
+                class="pl-stylist__chip"
+                data-ask="{{ section.settings[key] | escape }}"
+              >
+                <span>{{ section.settings[key] | escape }}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+              </button>
+            </li>
+          {%- endfor -%}
+        </ul>
+      </div>
+    {%- endif -%}
+  </div>
+</ask-stylist>
+
+
+{% stylesheet %}
+  .pl-stylist {
+    display: block;
+    background: var(--pl-sand);
+    color: var(--pl-ink);
+    padding-block: var(--pl-pad-start) var(--pl-pad-end);
+  }
+
+  .pl-stylist__inner {
+    width: 100%;
+    max-width: var(--page-width, 1400px);
+    margin-inline: auto;
+    padding-inline: var(--page-margin, 20px);
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 4.5rem);
+  }
+
+  /* ── Copy ───────────────────────────────────────── */
+  .pl-stylist__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9rem;
+    max-inline-size: 46ch;
+  }
+
+  .pl-stylist__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    font-size: var(--font-size--xs, 0.8125rem);
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 62%, transparent);
+  }
+
+  /* The same live green the chat header uses for "Online". */
+  .pl-stylist__dot {
+    inline-size: 7px;
+    block-size: 7px;
+    border-radius: 50%;
+    background: #3ecf8e;
+    flex: none;
+  }
+
+  .pl-stylist__heading {
+    margin: 0;
+    font-family: var(--font-h2--family, inherit);
+    font-size: clamp(1.8rem, 3.5vw, 2.85rem);
+    font-weight: var(--font-h2--weight, 500);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+  }
+
+  .pl-stylist__text {
+    margin: 0;
+    font-size: var(--font-size--lg, 1.125rem);
+    line-height: 1.6;
+    color: color-mix(in srgb, var(--pl-ink) 74%, transparent);
+    text-wrap: pretty;
+  }
+
+  .pl-stylist__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-block-start: 0.4rem;
+    padding: 0.9rem 1.7rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--pl-ink);
+    color: var(--pl-sand);
+    font-family: inherit;
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.2s ease;
+  }
+
+  .pl-stylist__btn:hover { transform: translateY(-2px); }
+  .pl-stylist__btn:active { transform: translateY(0) scale(0.98); }
+
+  .pl-stylist__btn svg { transition: transform 0.2s ease; }
+  .pl-stylist__btn:hover svg { transform: translateX(3px); }
+
+  /* ── The written-out questions ──────────────────── */
+  .pl-stylist__prompts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .pl-stylist__promptlabel {
+    margin: 0 0 0.15rem;
+    font-size: var(--font-size--2xs, 0.75rem);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 55%, transparent);
+  }
+
+  .pl-stylist__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Shaped like the quick replies inside the chat itself, so tapping one feels
+     like it continues into the panel rather than opening something else. */
+  .pl-stylist__chip {
+    inline-size: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--pl-ink) 16%, transparent);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.55);
+    color: var(--pl-ink);
+    font-family: inherit;
+    font-size: var(--font-size--sm, 0.875rem);
+    line-height: 1.4;
+    text-align: start;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .pl-stylist__chip svg {
+    flex: none;
+    opacity: 0.4;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .pl-stylist__chip:hover {
+    background: #fff;
+    border-color: color-mix(in srgb, var(--pl-ink) 34%, transparent);
+    transform: translateX(3px);
+  }
+
+  .pl-stylist__chip:hover svg {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+
+  .pl-stylist__btn:focus-visible,
+  .pl-stylist__chip:focus-visible {
+    outline: 2px solid var(--pl-ink);
+    outline-offset: 3px;
+  }
+
+  @media screen and (max-width: 899px) {
+    .pl-stylist__inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(1.75rem, 6vw, 2.5rem);
+    }
+
+    .pl-stylist__copy { max-inline-size: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pl-stylist__btn,
+    .pl-stylist__btn svg,
+    .pl-stylist__chip,
+    .pl-stylist__chip svg {
+      transition: none;
+    }
+
+    .pl-stylist__btn:hover,
+    .pl-stylist__chip:hover {
+      transform: none;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Ask the stylist",
+  "tag": "section",
+  "class": "pl-stylist-section",
+  "disabled_on": { "groups": ["header", "footer"] },
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Needs the AI support chat on the page. Tapping a question opens the chat with it already asked."
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Personal shopping — answering now" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Not sure what size she takes?" },
+    {
+      "type": "text",
+      "id": "text",
+      "label": "Text",
+      "default": "Ask our assistant. It knows every size we have in stock, what runs small, and what goes together — and it will put a whole outfit in your basket if you would rather not think about it."
+    },
+    { "type": "text", "id": "button_label", "label": "Button label", "default": "Start a conversation" },
+    {
+      "type": "url",
+      "id": "fallback_url",
+      "label": "If the chat is unavailable, go to",
+      "info": "Used only on pages without the assistant. Defaults to /pages/contact."
+    },
+    { "type": "header", "content": "Written-out questions" },
+    { "type": "text", "id": "prompts_label", "label": "Label above", "default": "Try asking" },
+    {
+      "type": "text",
+      "id": "prompt_1",
+      "label": "Question 1",
+      "default": "What size shoe for a 3 year old?"
+    },
+    {
+      "type": "text",
+      "id": "prompt_2",
+      "label": "Question 2",
+      "default": "Put together a christening outfit under £150"
+    },
+    {
+      "type": "text",
+      "id": "prompt_3",
+      "label": "Question 3",
+      "default": "What is in stock for a summer wedding?"
+    },
+    { "type": "header", "content": "Colours" },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background",
+      "info": "The AI chat's own accent colour.",
+      "default": "#d8c9b6"
+    },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2b2926" },
+    { "type": "header", "content": "Padding" },
+    {
+      "type": "range", "id": "padding_block_start", "label": "Top",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 80
+    },
+    {
+      "type": "range", "id": "padding_block_end", "label": "Bottom",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 80
+    }
+  ],
+  "presets": [{ "name": "Ask the stylist", "category": "Storytelling" }]
+}
+{% endschema %}

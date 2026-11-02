@@ -1,0 +1,58 @@
+{%- doc -%}
+  One category card for the "Shop by age" grid.
+
+  Pulled out of the section so the hand-picked list and the automatic fallback
+  can share exactly the same card rather than drifting apart.
+
+  @param {object} collection - The collection to link to.
+  @param {string} [label] - Overrides the collection title.
+  @param {boolean} [lead] - Give this one the large frame.
+  @param {boolean} [show_count] - Print how many products it holds.
+{%- enddoc -%}
+
+{%- liquid
+  assign name = label | default: collection.title
+
+  assign image = collection.image
+  unless image
+    assign image = collection.products.first.featured_image
+  endunless
+-%}
+
+{%- if collection.title != blank -%}
+  <a class="pl-ages__card{% if lead %} pl-ages__card--lead{% endif %}" href="{{ collection.url }}">
+    <span class="pl-ages__media">
+      {%- if image -%}
+        <img
+          class="pl-ages__img"
+          src="{{ image | image_url: width: 900 }}"
+          srcset="
+            {{ image | image_url: width: 400 }} 400w,
+            {{ image | image_url: width: 700 }} 700w,
+            {{ image | image_url: width: 1000 }} 1000w,
+            {{ image | image_url: width: 1400 }} 1400w
+          "
+          sizes="{% if lead %}(min-width: 750px) 50vw, 100vw{% else %}(min-width: 750px) 25vw, 50vw{% endif %}"
+          alt="{{ image.alt | default: name | escape }}"
+          width="{{ image.width }}"
+          height="{{ image.height }}"
+          loading="lazy"
+        >
+      {%- else -%}
+        <span class="pl-ages__placeholder">
+          {{ 'collection-apparel-1' | placeholder_svg_tag: 'pl-ages__placeholder-svg' }}
+        </span>
+      {%- endif -%}
+    </span>
+
+    <span class="pl-ages__label">
+      <span class="pl-ages__name">{{ name | escape }}</span>
+      {%- if show_count and collection.all_products_count > 0 -%}
+        <span class="pl-ages__count">
+          {{ collection.all_products_count }}
+          {%- if collection.all_products_count == 1 %} piece{% else %} pieces{% endif -%}
+        </span>
+      {%- endif -%}
+    </span>
+  </a>
+{%- endif -%}

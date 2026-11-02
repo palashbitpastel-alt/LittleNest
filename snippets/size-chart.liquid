@@ -1,0 +1,202 @@
+{%- doc -%}
+  The size guide for one product, chosen by its product type, showing only the
+  sizes that product actually comes in.
+
+  Each kind of piece gets the measurements that decide its fit:
+  - tops, dresses and outerwear: height and chest
+  - trousers, shorts and skirts: height, waist and hip
+  - rompers and sleepsuits: height, chest and weight
+  - shoes and boots: EU / UK / US and foot length
+  - socks and tights: the shoe size they fit
+  - hats and bonnets: head circumference
+  - belts: belt length and the waist it fits
+
+  The UK / US shoe conversions are the store's own variant names. Every body
+  measurement is a typical European children's size, not the brand's own chart:
+  marked in the handbook (PROJECT_DESCRIPTION.md section 12) as a general guide.
+  Keep the two in step when either changes.
+
+  Renders nothing for a product with no size option, or a type with no chart
+  (bibs, hairbands, sunglasses, toys).
+
+  @param {product} product - The product to size.
+  @param {string} [heading] - The disclosure's label. Default "Size guide".
+  @param {boolean} [only_offered] - Only the rows for this product's sizes. Default true.
+  @param {boolean} [open] - Start expanded. Default false.
+
+  @example
+  {% render 'size-chart', product: closest.product %}
+{%- enddoc -%}
+
+{%- liquid
+  assign heading = heading | default: 'Size guide'
+  if only_offered == false
+    assign filter_rows = false
+  else
+    assign filter_rows = true
+  endif
+
+  assign type = product.type | downcase | strip
+  assign kind = ''
+  case type
+    when 'blouse', 'shirt', 'top', 'sweater', 'jumper', 'cardigan', 'coat', 'jacket', 'dress'
+      assign kind = 'tops'
+    when 'trousers', 'shorts', 'skirt', 'jeans', 'leggings'
+      assign kind = 'bottoms'
+    when 'romper', 'sleepsuit', 'bodysuit', 'set', 'pyjamas'
+      assign kind = 'allinone'
+    when 'shoes', 'boots', 'sandals'
+      assign kind = 'shoes'
+    when 'socks', 'tights'
+      assign kind = 'socks'
+    when 'hat', 'bonnet'
+      assign kind = 'hats'
+    when 'belt'
+      assign kind = 'belts'
+  endcase
+
+  assign size_option = nil
+  for option in product.options_with_values
+    assign option_name = option.name | downcase | strip
+    if option_name == 'size' or option_name == 'talla' or option_name == 'taille' or option_name == 'age'
+      assign size_option = option
+      break
+    endif
+  endfor
+-%}
+
+{%- if kind != blank and size_option != nil -%}
+  {%- liquid
+    # Clothing, one row per size: size | age | height | chest | waist | hip | weight
+    assign clothing = '0M|Newborn|up to 50|39|-|-|up to 3.5;1M|0-1 month|51-56|41|-|-|3.5-4.5;3M|1-3 months|57-62|43|-|-|4.5-6;6M|3-6 months|63-68|45|45|-|6-8;9M|6-9 months|69-74|47|46|-|8-9;12M|9-12 months|75-80|49|47|-|9-10.5;18M|12-18 months|81-86|51|48|-|10.5-12;2Y|2 years|87-92|52|50|54|12-14;3Y|3 years|93-98|54|51|56|14-16;4Y|4 years|99-104|56|52|58|16-18;5Y|5 years|105-110|58|53|60|18-20;6Y|6 years|111-116|60|54|62|20-22;7Y|7 years|117-122|62|55|65|22-25;8Y|8 years|123-128|64|57|68|25-28;9Y|9 years|129-134|67|59|71|28-31;10Y|10 years|135-140|70|61|74|31-35;12Y|11-12 years|141-152|76|64|80|35-42'
+
+    case kind
+      when 'tops'
+        assign headers = 'Size|Age|Height (cm)|Chest (cm)'
+        assign columns = '0,1,2,3'
+        assign rows = clothing
+        assign note = 'Body measurements, not the garment. Between sizes, or for room to grow, choose the larger size.'
+      when 'bottoms'
+        assign headers = 'Size|Age|Height (cm)|Waist (cm)|Hip (cm)'
+        assign columns = '0,1,2,4,5'
+        assign rows = clothing
+        assign note = 'Measure the waist at the natural waistline and the hip at the widest point. Between sizes, choose the larger.'
+      when 'allinone'
+        assign headers = 'Size|Age|Height (cm)|Chest (cm)|Weight (kg)'
+        assign columns = '0,1,2,3,6'
+        assign rows = clothing
+        assign note = 'Go by height first: an all-in-one that is short in the body is uncomfortable. Between sizes, choose the larger.'
+      when 'shoes'
+        # EU | UK | US | foot length | age. UK / US from the store's own variant names.
+        assign headers = 'EU|UK|US|Foot length (cm)|Age'
+        assign columns = '0,1,2,3,4'
+        assign rows = '20|4|5|12.0-12.5|12-18 months;21|4.5|5.5|12.6-13.1|18 months;22|5|6|13.2-13.8|2 years;23|6|7|13.9-14.5|2 years;24|7|8|14.6-15.1|2-3 years;25|8|9|15.2-15.8|3 years;26|8.5|9.5|15.9-16.5|3-4 years;27|9|10|16.6-17.1|4 years;28|10|11|17.2-17.8|4-5 years;29|11|12|17.9-18.5|5-6 years;30|12|13|18.6-19.1|6 years;31|12.5|13.5|19.2-19.8|6-7 years;32|13.5|1.5|19.9-20.5|7-8 years;33|1|2|20.6-21.1|8 years;34|2|2.5|21.2-21.8|9 years;35|2.5|3.5|21.9-22.5|9-10 years;36|3.5|4.5|22.6-23.1|10-11 years'
+        assign note = 'Measure from heel to longest toe with your child standing, and choose the size whose foot length is just above it - about 1 cm of room for growing is right.'
+      when 'socks'
+        assign headers = 'Sock size|Fits shoe (EU)|Age'
+        assign columns = '0,1,2'
+        assign rows = '0-3M|15-16|0-3 months;3-6M|16-17|3-6 months;6-12M|17-19|6-12 months;12-24M|20-22|1-2 years;18-24M|21-22|18-24 months;2/4Y|23-26|2-4 years;3/4Y|24-26|3-4 years;4/6Y|27-30|4-6 years;5/6Y|28-30|5-6 years;6/8Y|30-33|6-8 years;7/8Y|31-33|7-8 years;8/10Y|33-35|8-10 years;9/10Y|34-35|9-10 years'
+        assign note = 'Go by shoe size where you know it; ages are a rough guide.'
+      when 'hats'
+        assign headers = 'Size|Head (cm)|Age'
+        assign columns = '0,1,2'
+        assign rows = 'XS|36-39|0-3 months;XS/S|36-42|0-6 months;S|40-42|3-6 months;M|43-46|6-12 months;M/L|43-49|6-24 months;L|47-49|12-24 months'
+        assign note = 'Measure around the head just above the ears and eyebrows. Between sizes, choose the larger - bonnets tie to fit.'
+      when 'belts'
+        assign headers = 'Size|Belt length (cm)|Fits waist (cm)|Age'
+        assign columns = '0,1,2,3'
+        assign rows = 'S|60|48-52|2-5 years;M|70|52-58|5-8 years;L|70|52-58|5-8 years;XL|80|58-64|8-12 years'
+        assign note = 'Measure around the waist where the belt will sit, over clothes.'
+    endcase
+
+    # The product's own sizes, as the first column of the chart names them:
+    # "9UK/10US/27EU" and "10 UK / 11 US / 28 EU" are EU 27 and 28, "L / 70cm" is L.
+    assign offered = '|'
+    for value in size_option.values
+      case kind
+        when 'shoes'
+          assign key = value | split: '/' | last | remove: 'EU' | remove: 'eu' | strip
+        when 'belts'
+          assign key = value | split: '/' | first | strip
+        else
+          assign key = value | strip
+      endcase
+      assign key = key | upcase
+      assign offered = offered | append: key | append: '|'
+    endfor
+
+    assign row_list = rows | split: ';'
+    assign column_list = columns | split: ','
+    assign header_list = headers | split: '|'
+
+    # A size naming nothing in the chart - a label this guide has not met -
+    # shows the whole chart rather than an empty one.
+    assign matched = 0
+    for row in row_list
+      assign first = row | split: '|' | first | upcase
+      assign probe = '|' | append: first | append: '|'
+      if offered contains probe
+        assign matched = matched | plus: 1
+      endif
+    endfor
+    if matched == 0
+      assign filter_rows = false
+    endif
+  -%}
+
+  <details class="size-chart" data-size-chart="{{ kind }}" {% if open %}open{% endif %}>
+    <summary class="size-chart__summary">
+      <span class="size-chart__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="7.5" width="19" height="9" rx="1.5"/><path d="M6.5 7.5v3M10.5 7.5v4.5M14.5 7.5v3M18.5 7.5v4.5"/></svg>
+      </span>
+      <span class="size-chart__label">{{ heading | escape }}</span>
+      <span class="size-chart__chevron" aria-hidden="true"></span>
+    </summary>
+
+    <div class="size-chart__body">
+      <div class="size-chart__scroll" tabindex="0" role="region" aria-label="{{ heading | escape }}">
+        <table class="size-chart__table">
+          <thead>
+            <tr>
+              {%- for label in header_list -%}
+                <th scope="col">{{ label }}</th>
+              {%- endfor -%}
+            </tr>
+          </thead>
+          <tbody>
+            {%- for row in row_list -%}
+              {%- liquid
+                assign fields = row | split: '|'
+                assign first = fields[0] | upcase
+                assign probe = '|' | append: first | append: '|'
+                if filter_rows and offered contains probe
+                  assign show = true
+                elsif filter_rows
+                  assign show = false
+                else
+                  assign show = true
+                endif
+              -%}
+              {%- if show -%}
+                <tr>
+                  {%- for c in column_list -%}
+                    {%- assign index = c | plus: 0 -%}
+                    {%- if forloop.first -%}
+                      <th scope="row">{{ fields[index] }}</th>
+                    {%- else -%}
+                      <td>{{ fields[index] }}</td>
+                    {%- endif -%}
+                  {%- endfor -%}
+                </tr>
+              {%- endif -%}
+            {%- endfor -%}
+          </tbody>
+        </table>
+      </div>
+      <p class="size-chart__note">{{ note }}</p>
+      <p class="size-chart__note size-chart__note--muted">
+        A general guide based on typical European children's sizes; fit can vary by style.
+      </p>
+    </div>
+  </details>
+{%- endif -%}

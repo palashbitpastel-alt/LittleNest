@@ -1,0 +1,439 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "slideshow_Wzmq9x": {
+      "type": "slideshow",
+      "blocks": {
+        "slide_kzenaF": {
+          "type": "_slide",
+          "settings": {
+            "media_type_1": "image",
+            "image_1": "shopify://shop_images/CELEBRATION02_desktop_HP_Banner_copy.webp",
+            "content_direction": "column",
+            "vertical_on_mobile": true,
+            "horizontal_alignment": "flex-start",
+            "vertical_alignment": "center",
+            "align_baseline": false,
+            "horizontal_alignment_flex_direction_column": "center",
+            "vertical_alignment_flex_direction_column": "flex-end",
+            "gap": 12,
+            "background_color": "",
+            "toggle_overlay": true,
+            "overlay_color": "#00000026",
+            "overlay_style": "solid",
+            "gradient_direction": "to top",
+            "padding-block-start": 48,
+            "padding-block-end": 48,
+            "padding-inline-start": 48,
+            "padding-inline-end": 48
+          },
+          "blocks": {
+            "text_YaWpF6": {
+              "type": "text",
+              "name": "t:names.heading",
+              "settings": {
+                "text": "<h3>New arrivals</h3>",
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "text_color": "",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "text_R3qcwU": {
+              "type": "text",
+              "settings": {
+                "text": "<p>Introducing our latest products, made especially for the season. Shop your favorites before they're gone!</p>",
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "text_color": "",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 20,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "button_YbHcL6": {
+              "type": "button",
+              "settings": {
+                "label": "Shop now",
+                "link": "shopify://collections/all",
+                "open_in_new_tab": false,
+                "style_class": "button",
+                "custom_button_background": "{{ settings.color_palette.foreground }}",
+                "custom_button_text": "{{ settings.color_palette.background }}",
+                "custom_button_border": "{{ settings.color_palette.background }}",
+                "link_text_color": "",
+                "width": "fit-content",
+                "custom_width": 100,
+                "width_mobile": "fit-content",
+                "custom_width_mobile": 100
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "text_YaWpF6",
+            "text_R3qcwU",
+            "button_YbHcL6"
+          ]
+        }
+      },
+      "block_order": [
+        "slide_kzenaF"
+      ],
+      "name": "t:names.slideshow_full_frame",
+      "settings": {
+        "display_mode": "full_frame",
+        "section_width": "full-width",
+        "full_frame_on_mobile": false,
+        "slideshow_gap": 12,
+        "corner_radius": 0,
+        "slide_height": "medium",
+        "content_position": "on-media",
+        "background_color": "",
+        "icons_style": "arrows_large",
+        "icons_shape": "none",
+        "slideshow_controls_style": "dots",
+        "autoplay": false,
+        "autoplay_speed": 4,
+        "padding-block-start": 0,
+        "padding-block-end": 0
+      }
+    },
+    "promise_bar": {
+      "type": "promise-bar",
+      "settings": {
+        "heading": "",
+        "item_1_icon": "needle",
+        "item_1_title": "Made in Spain",
+        "item_1_text": "Sewn in small family workshops, the way it has always been done.",
+        "item_2_icon": "truck",
+        "item_2_title": "Free delivery over £75",
+        "item_2_text": "Ordered before 2pm, packed and sent the same working day.",
+        "item_3_icon": "return",
+        "item_3_title": "30 days to change your mind",
+        "item_3_text": "Unworn and tagged. They grow fast — we understand.",
+        "item_4_icon": "gift",
+        "item_4_title": "Wrapped by hand",
+        "item_4_text": "Tissue, ribbon and a handwritten card at no extra cost.",
+        "background_color": "#ffffff",
+        "text_color": "#2b2926",
+        "accent_color": "#d8c9b6",
+        "padding_block_start": 52,
+        "padding_block_end": 52
+      }
+    },
+    "shop_by_age": {
+      "type": "shop-by-age",
+      "disabled": true,
+      "settings": {
+        "eyebrow": "Shop by age",
+        "heading": "Every stage, beautifully dressed",
+        "subheading": "From first babygrows to first school shoes — pick an age and we will take it from there.",
+        "link_label": "View everything",
+        "link_url": "shopify://products/catherine-gingham-embroidered-sleeveless-trapeze-dress",
+        "show_count": true,
+        "collection_1": "featured-products",
+        "label_1": "Newborn",
+        "collection_2": "baby-girl",
+        "label_2": "Baby girl",
+        "collection_3": "baby-boy",
+        "label_3": "Baby boy",
+        "collection_4": "girl",
+        "label_4": "Girl",
+        "collection_5": "boy",
+        "label_5": "Boy",
+        "corner_radius": 4,
+        "background_color": "#ffffff",
+        "text_color": "#2b2926",
+        "accent_color": "#d8c9b6",
+        "padding_block_start": 72,
+        "padding_block_end": 64
+      }
+    },
+    "product_list_fa6P9H": {
+      "type": "product-list",
+      "blocks": {
+        "static-header": {
+          "type": "_product-list-content",
+          "name": "t:names.header",
+          "static": true,
+          "settings": {
+            "content_direction": "row",
+            "vertical_on_mobile": false,
+            "horizontal_alignment": "space-between",
+            "vertical_alignment": "flex-end",
+            "align_baseline": true,
+            "horizontal_alignment_flex_direction_column": "flex-start",
+            "vertical_alignment_flex_direction_column": "center",
+            "gap": 12,
+            "width": "fill",
+            "custom_width": 100,
+            "width_mobile": "fill",
+            "custom_width_mobile": 100,
+            "height": "fit",
+            "custom_height": 100,
+            "background_media": "none",
+            "background_color": "",
+            "video_position": "cover",
+            "background_image_position": "cover",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100,
+            "border_color": "",
+            "border_radius": 0,
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {
+            "product_list_text_YFtzcL": {
+              "type": "_product-list-text",
+              "name": "t:names.collection_title",
+              "settings": {
+                "text": "<h3>{{ closest.collection.title }}</h3>",
+                "width": "fit-content",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "h4",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "text_color": "",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "product_list_button_MWeP9V": {
+              "type": "_product-list-button",
+              "name": "t:names.product_list_button",
+              "settings": {
+                "label": "View all",
+                "open_in_new_tab": false,
+                "style_class": "link",
+                "custom_button_background": "{{ settings.color_palette.foreground }}",
+                "custom_button_text": "{{ settings.color_palette.background }}",
+                "custom_button_border": "{{ settings.color_palette.background }}",
+                "link_text_color": "",
+                "width": "fit-content",
+                "custom_width": 100,
+                "width_mobile": "fit-content",
+                "custom_width_mobile": 100
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "product_list_text_YFtzcL",
+            "product_list_button_MWeP9V"
+          ]
+        },
+        "static-product-card": {
+          "type": "_product-card",
+          "name": "t:names.product_card",
+          "static": true,
+          "settings": {
+            "product_card_gap": 4,
+            "background_color": "",
+            "border": "none",
+            "border_width": 1,
+            "border_opacity": 100,
+            "border_color": "",
+            "border_radius": 0,
+            "padding-block-start": 0,
+            "padding-block-end": 0,
+            "padding-inline-start": 0,
+            "padding-inline-end": 0
+          },
+          "blocks": {
+            "product_card_gallery_677WP3": {
+              "type": "_product-card-gallery",
+              "name": "t:names.product_card_media",
+              "settings": {
+                "image_ratio": "adapt",
+                "border": "none",
+                "border_width": 1,
+                "border_opacity": 100,
+                "border_color": "",
+                "border_radius": 0,
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "product_title_YXxMTj": {
+              "type": "product-title",
+              "name": "t:names.product_title",
+              "settings": {
+                "width": "100%",
+                "max_width": "normal",
+                "alignment": "left",
+                "type_preset": "rte",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "wrap": "pretty",
+                "text_color": "",
+                "background": false,
+                "background_color": "#00000026",
+                "corner_radius": 0,
+                "padding-block-start": 4,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            },
+            "price_JQzVV4": {
+              "type": "price",
+              "name": "t:names.product_price",
+              "settings": {
+                "show_sale_price_first": true,
+                "show_installments": false,
+                "show_tax_info": false,
+                "type_preset": "h6",
+                "width": "100%",
+                "alignment": "left",
+                "font": "var(--font-body--family)",
+                "font_size": "1rem",
+                "line_height": "normal",
+                "letter_spacing": "normal",
+                "case": "none",
+                "text_color": "",
+                "padding-block-start": 0,
+                "padding-block-end": 0,
+                "padding-inline-start": 0,
+                "padding-inline-end": 0
+              },
+              "blocks": {}
+            }
+          },
+          "block_order": [
+            "product_card_gallery_677WP3",
+            "product_title_YXxMTj",
+            "price_JQzVV4"
+          ]
+        }
+      },
+      "name": "t:names.product_list",
+      "settings": {
+        "collection": "all",
+        "layout_type": "grid",
+        "carousel_on_mobile": false,
+        "max_products": 8,
+        "columns": 4,
+        "mobile_columns": "2",
+        "mobile_card_size": "60cqw",
+        "columns_gap": 8,
+        "rows_gap": 24,
+        "icons_style": "arrow",
+        "icons_shape": "none",
+        "section_width": "page-width",
+        "horizontal_alignment": "flex-start",
+        "gap": 28,
+        "background_color": "{{ settings.color_palette.background }}",
+        "padding-block-start": 48,
+        "padding-block-end": 48
+      }
+    },
+    "craft_story": {
+      "type": "craft-story",
+      "settings": {
+        "image": "shopify://shop_images/CELEB14_348.webp",
+        "fallback_collection": "",
+        "reverse": true,
+        "eyebrow": "Our workshops",
+        "heading": "Made slowly, in Spain",
+        "text": "<p>Every pair of our Mary Janes is cut, stitched and finished by hand in the same small Spanish workshops we have worked with for years. Full-grain leather, a leather sole, and stitching you can count.</p><p>It is slower than the alternative, and it is why these are the shoes that get handed down to the next one.</p>",
+        "fact_1_label": "Made in",
+        "fact_1_value": "Elche, Spain",
+        "fact_2_label": "Materials",
+        "fact_2_value": "100% full-grain leather",
+        "fact_3_label": "Sizes",
+        "fact_3_value": "EU 17 – 34",
+        "button_label": "Read our story",
+        "button_url": "",
+        "background_color": "#f5f1ea",
+        "text_color": "#2b2926",
+        "accent_color": "#d8c9b6",
+        "padding_block_start": 88,
+        "padding_block_end": 88
+      }
+    },
+    "ask_stylist": {
+      "type": "ask-stylist",
+      "settings": {
+        "eyebrow": "Personal shopping — answering now",
+        "heading": "Not sure what size she takes?",
+        "text": "Ask our assistant. It knows every size we have in stock, what runs small, and what goes together — and it will put a whole outfit in your basket if you would rather not think about it.",
+        "button_label": "Start a conversation",
+        "fallback_url": "",
+        "prompts_label": "Try asking",
+        "prompt_1": "What size shoe for a 3 year old?",
+        "prompt_2": "Put together a christening outfit under £150",
+        "prompt_3": "What is in stock for a summer wedding?",
+        "background_color": "#d8c9b6",
+        "text_color": "#2b2926",
+        "padding_block_start": 80,
+        "padding_block_end": 80
+      }
+    }
+  },
+  "order": [
+    "slideshow_Wzmq9x",
+    "promise_bar",
+    "shop_by_age",
+    "product_list_fa6P9H",
+    "craft_story",
+    "ask_stylist"
+  ]
+}

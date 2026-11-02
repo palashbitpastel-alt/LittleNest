@@ -1,0 +1,179 @@
+{%- comment -%}
+  Size guide for the product page. The chart itself - which one, and which
+  rows - is chosen by snippets/size-chart.liquid from the product's type and
+  its own sizes; this block only places it and styles it. Renders nothing for
+  a product with no size option or a type with no chart.
+{%- endcomment -%}
+
+<div class="size-chart-block spacing-style" style="{% render 'spacing-style', settings: block.settings %}" {{ block.shopify_attributes }}>
+  {% render 'size-chart',
+    product: closest.product,
+    heading: block.settings.heading,
+    only_offered: block.settings.only_offered,
+    open: block.settings.open_by_default
+  %}
+</div>
+
+{% stylesheet %}
+  .size-chart-block:empty,
+  .size-chart-block:not(:has(.size-chart)) {
+    display: none;
+  }
+
+  .size-chart {
+    border-block: 1px solid rgb(var(--color-foreground-rgb) / 0.12);
+  }
+
+  .size-chart__summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-block: 14px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 0.9375rem;
+  }
+
+  .size-chart__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .size-chart__label {
+    flex: 1;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .size-chart__icon {
+    display: inline-flex;
+  }
+
+  .size-chart__chevron {
+    inline-size: 8px;
+    block-size: 8px;
+    border-inline-end: 1.5px solid currentColor;
+    border-block-end: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    margin-inline-end: 4px;
+    transition: transform 0.2s ease;
+  }
+
+  .size-chart[open] .size-chart__chevron {
+    transform: rotate(-135deg);
+  }
+
+  .size-chart__body {
+    padding-block-end: 16px;
+  }
+
+  .size-chart__scroll {
+    overflow-x: auto;
+    border: 1px solid rgb(var(--color-foreground-rgb) / 0.12);
+    border-radius: 6px;
+  }
+
+  .size-chart__table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .size-chart__table th,
+  .size-chart__table td {
+    padding: 8px 12px;
+    text-align: start;
+    border-block-end: 1px solid rgb(var(--color-foreground-rgb) / 0.08);
+  }
+
+  .size-chart__table thead th {
+    font-weight: 600;
+    background: rgb(var(--color-foreground-rgb) / 0.04);
+  }
+
+  .size-chart__table tbody th {
+    font-weight: 600;
+  }
+
+  .size-chart__table tbody tr:last-child > * {
+    border-block-end: 0;
+  }
+
+  .size-chart__note {
+    margin: 10px 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  .size-chart__note--muted {
+    margin-block-start: 4px;
+    color: rgb(var(--color-foreground-rgb) / 0.65);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .size-chart__chevron {
+      transition: none;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Size guide",
+  "tag": null,
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Shows the size chart for this product's type (clothing, shoes, socks, hats or belts), with only the sizes it comes in. Hidden for products with no size option."
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Size guide"
+    },
+    {
+      "type": "checkbox",
+      "id": "only_offered",
+      "label": "Only show this product's sizes",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "open_by_default",
+      "label": "Open by default",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "Top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "Bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "Size guide"
+    }
+  ]
+}
+{% endschema %}

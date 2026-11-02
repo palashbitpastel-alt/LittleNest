@@ -1,0 +1,3205 @@
+/* ===========================================================================
+   AI Support Chat — floating popup widget
+   No dependencies. Scoped under <ai-support-chat> so it cannot collide with
+   theme styles. Light + dark, reduced-motion aware, mobile full-screen.
+   =========================================================================== */
+
+ai-support-chat {
+  --aisc-accent: #1f2937;
+  --aisc-accent-text: #ffffff;
+  --aisc-surface: #ffffff;
+  --aisc-surface-alt: #f5f6f8;
+  --aisc-bubble-bot: #ffffff;
+  --aisc-text: #14181f;
+  --aisc-text-muted: #6b7280;
+  --aisc-border: rgba(20, 24, 31, 0.10);
+  --aisc-shadow: 0 16px 48px rgba(16, 24, 40, 0.20);
+  --aisc-shadow-sm: 0 2px 8px rgba(16, 24, 40, 0.08);
+  --aisc-radius: 18px;
+  --aisc-scroll: rgba(20, 24, 31, 0.22);
+  --aisc-scroll-hover: rgba(20, 24, 31, 0.38);
+  --aisc-ok: #12a150;
+  --aisc-danger: #e5484d;
+  /* Order state. Separate from the accent on purpose — state is information,
+     not branding, so it must not shift when a merchant recolours the widget. */
+  --aisc-info: #2563eb;
+  --aisc-warn: #b45309;
+  --aisc-z: 2147483000;
+
+  /* Launcher pill. The disc is what shows when the pill is closed, so the
+     collapsed background is the disc's colour — the pill grows out from
+     behind it rather than appearing around it. */
+  --aisc-launcher-size: 64px;
+  --aisc-launcher-pad: 7px;
+  --aisc-launcher-gap: 12px;
+  --aisc-launcher-tail: 26px;
+  --aisc-launcher-bg: var(--aisc-accent);
+  --aisc-launcher-fg: var(--aisc-accent-text);
+  --aisc-launcher-disc: #ffffff;
+  --aisc-launcher-disc-fg: var(--aisc-accent-text);
+  /* Set by the script once the label has been measured. */
+  --aisc-label-w: 96px;
+  --aisc-panel-w: min(400px, calc(100vw - 32px));
+
+  position: fixed;
+  /* --aisc-bottom is written by the drag handler; the fallback is the resting
+     position, so the widget still sits correctly with scripting half-loaded. */
+  inset-block-end: var(--aisc-bottom, max(24px, env(safe-area-inset-bottom)));
+  inset-inline-end: max(24px, env(safe-area-inset-right));
+  z-index: var(--aisc-z);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--aisc-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  ai-support-chat:not([data-force-light]) {
+    --aisc-surface: #15171c;
+    --aisc-surface-alt: #191c22;
+    --aisc-bubble-bot: #272c36;
+    --aisc-text: #f2f4f7;
+    --aisc-text-muted: #99a2b1;
+    --aisc-border: rgba(255, 255, 255, 0.12);
+    --aisc-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+    --aisc-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --aisc-scroll: rgba(255, 255, 255, 0.20);
+    --aisc-scroll-hover: rgba(255, 255, 255, 0.34);
+    /* Lifted so state stays legible on a dark ground. */
+    --aisc-ok: #3ecf7f;
+    --aisc-danger: #ff7a7f;
+    --aisc-info: #7aa7ff;
+    --aisc-warn: #e0a04a;
+  }
+}
+
+/* ── Launcher ──────────────────────────────────────────── */
+/* At rest it is the disc alone. On hover the pill grows to the left and the
+   label fades in behind the disc; the disc never changes size, so the eye has
+   something to hold on to through the whole movement. */
+.aisc-launcher-wrap { position: relative; display: flex; }
+.aisc-launcher {
+  display: flex;
+  align-items: center;
+  gap: var(--aisc-launcher-gap);
+  inline-size: var(--aisc-launcher-size);
+  block-size: var(--aisc-launcher-size);
+  padding: var(--aisc-launcher-pad);
+  border: 0;
+  border-radius: 999px;
+  background: var(--aisc-launcher-disc);
+  color: var(--aisc-launcher-fg);
+  box-shadow: var(--aisc-shadow);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  /* The button is also the drag handle, so the browser must not claim the
+     gesture for a scroll before the pointer handler has seen it. */
+  touch-action: none;
+  margin-inline-start: auto;
+  transition:
+    inline-size 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.18s ease;
+}
+.aisc-launcher-disc {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: calc(var(--aisc-launcher-size) - var(--aisc-launcher-pad) * 2);
+  block-size: calc(var(--aisc-launcher-size) - var(--aisc-launcher-pad) * 2);
+  border-radius: 50%;
+  background: var(--aisc-launcher-disc);
+  color: var(--aisc-launcher-disc-fg);
+}
+.aisc-launcher-disc svg { inline-size: 26px; block-size: 26px; }
+.aisc-launcher-label {
+  /* Never shrink: the pill clips it instead, and the script needs to be able
+     to measure its natural width while it is still hidden. */
+  flex: none;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.2s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Open (hover, keyboard focus, or the one-time peek on a first visit). */
+ai-support-chat:not([open]):not([data-dragging]) .aisc-launcher:hover,
+ai-support-chat:not([open]) .aisc-launcher:focus-visible,
+ai-support-chat[data-peek]:not([open]) .aisc-launcher {
+  inline-size: calc(
+    var(--aisc-launcher-size) - var(--aisc-launcher-pad) + var(--aisc-launcher-gap) +
+    var(--aisc-label-w) + var(--aisc-launcher-tail)
+  );
+  background: var(--aisc-launcher-bg);
+}
+ai-support-chat:not([open]):not([data-dragging]) .aisc-launcher:hover .aisc-launcher-label,
+ai-support-chat:not([open]) .aisc-launcher:focus-visible .aisc-launcher-label,
+ai-support-chat[data-peek]:not([open]) .aisc-launcher .aisc-launcher-label {
+  opacity: 1;
+  transform: none;
+  transition-delay: 0.08s;
+}
+
+.aisc-launcher:active { transform: scale(0.96); }
+.aisc-launcher:focus-visible { outline: 3px solid var(--aisc-launcher-bg); outline-offset: 3px; }
+ai-support-chat[data-dragging] .aisc-launcher {
+  cursor: grabbing;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  transform: none;
+}
+/* Once the panel is open it carries its own close button, so the launcher
+   underneath it is a second control for the same job. It steps out of the way
+   instead of turning into a chevron. */
+.aisc-launcher-wrap {
+  transition: opacity 0.2s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+ai-support-chat[open] .aisc-launcher-wrap {
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+  /* Delayed so the button fades before it leaves the accessibility tree. */
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
+}
+
+/* One-time attention pulse, only while unopened */
+.aisc-launcher-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  inset-inline-start: auto;
+  inline-size: var(--aisc-launcher-size);
+  border-radius: 999px;
+  border: 2px solid var(--aisc-launcher-bg);
+  opacity: 0;
+  pointer-events: none;
+}
+ai-support-chat[data-attention]:not([open]) .aisc-launcher-wrap::after {
+  animation: aisc-ping 2.2s ease-out 3;
+}
+@keyframes aisc-ping {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  70%  { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+/* ── Bottom-centre placement ─────────────────────────────────────────── */
+/* Used on pages that want the assistant to be the invitation rather than a
+   corner utility — a collection index, a landing page. The pill is open from
+   the start there: centred, a bare disc would read as a stray dot. */
+ai-support-chat[data-position="center"] {
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  /* The host now spans the full width, so it must not swallow clicks meant
+     for the page behind it. */
+  pointer-events: none;
+}
+ai-support-chat[data-position="center"] .aisc-launcher-wrap { pointer-events: auto; }
+/* Only once it is actually open. Written with [open] so it cannot outrank the
+   closed state: this selector is more specific than `.aisc-panel`, so without
+   it the panel would take clicks meant for the page behind it while closed —
+   an invisible 400px box over the product, which is exactly the kind of thing
+   nobody thinks to look for. */
+ai-support-chat[data-position="center"][open] .aisc-panel { pointer-events: auto; }
+/* Only the button moves to the middle. The panel keeps the corner it has
+   everywhere else — it is a working surface, and a shopper reading it wants
+   the page beside it, not split in two behind it. */
+ai-support-chat[data-position="center"] .aisc-launcher-wrap { margin-inline: auto; }
+ai-support-chat[data-position="center"]:not([open]) .aisc-launcher {
+  inline-size: calc(
+    var(--aisc-launcher-size) - var(--aisc-launcher-pad) + var(--aisc-launcher-gap) +
+    var(--aisc-label-w) + var(--aisc-launcher-tail)
+  );
+  background: var(--aisc-launcher-bg);
+}
+ai-support-chat[data-position="center"]:not([open]) .aisc-launcher .aisc-launcher-label {
+  opacity: 1;
+  transform: none;
+}
+/* Already open, so hover lifts it instead of widening it. */
+ai-support-chat[data-position="center"]:not([data-dragging]) .aisc-launcher:hover {
+  box-shadow: 0 10px 30px rgba(43, 41, 38, 0.34);
+  transform: translateY(-2px);
+}
+ai-support-chat[data-position="center"] .aisc-launcher-wrap::after {
+  inset-inline-start: 0;
+  inline-size: auto;
+}
+
+.aisc-badge {
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-end: -2px;
+  min-inline-size: 20px;
+  block-size: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--aisc-danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--aisc-surface);
+}
+ai-support-chat[data-unread]:not([open]) .aisc-badge { display: flex; }
+
+/* ── Panel ───────────────────────────────────────────────────────────── */
+/* Positioned against the viewport rather than against the launcher, even while
+   it is floating in the corner. `position` cannot be animated, so docking would
+   be a jump if the two states used different ones; measured against the window,
+   docking is only a box growing to the full height of it. */
+.aisc-panel {
+  position: fixed;
+  /* Written by the script so the panel stays inside the viewport no matter
+     how high or low the launcher has been dragged. */
+  inset-block-end: var(--aisc-panel-bottom, 96px);
+  inset-inline-end: var(--aisc-panel-right, max(24px, env(safe-area-inset-right)));
+  inline-size: var(--aisc-panel-w);
+  block-size: var(--aisc-panel-h, min(620px, calc(100vh - 130px)));
+  display: flex;
+  flex-direction: column;
+  background: var(--aisc-surface);
+  border: 1px solid var(--aisc-border);
+  border-radius: var(--aisc-radius);
+  box-shadow: var(--aisc-shadow);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+  transform-origin: bottom right;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+ai-support-chat[open] .aisc-panel { opacity: 1; transform: none; pointer-events: auto; }
+
+/* A phone gets a sheet, not a window: full width at the bottom of the screen,
+   its height the shopper's to set by dragging the grip at the top. The store
+   stays visible above it, which is what every assistant on a phone does now —
+   a chat that swallows the page feels like leaving the shop.
+
+   dvh throughout: with vh the browser's own chrome crops the composer. */
+@media (max-width: 480px) {
+  .aisc-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    inline-size: 100%;
+    block-size: var(--aisc-sheet-h, 88dvh);
+    max-block-size: 100dvh;
+    border-start-start-radius: 20px;
+    border-start-end-radius: 20px;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    border: 0;
+    border-block-start: 1px solid var(--aisc-border);
+  }
+
+  /* The grip is the whole top strip, so a thumb finds it without aiming. */
+  .aisc-resize--edge-top {
+    display: block;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 26px;
+    cursor: grab;
+    z-index: 45;
+  }
+
+  /* The pill every sheet uses to say "drag me". */
+  .aisc-resize--edge-top::after {
+    content: "";
+    position: absolute;
+    inset-block-start: 9px;
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    inline-size: 40px;
+    block-size: 4px;
+    border-radius: 999px;
+    background: currentColor;
+    color: var(--aisc-text-muted);
+    opacity: 0.4;
+  }
+
+  /* The header starts below the grip so the two never fight for a tap. */
+  .aisc-header { padding-block-start: 20px; }
+
+  /* Width is the screen's on a phone; only height can move. */
+  .aisc-resize--edge-left,
+  .aisc-resize--corner { display: none; }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.aisc-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  flex: none;
+  position: relative;
+}
+.aisc-header::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 140% at 100% 0%, rgba(255,255,255,0.16), transparent 60%);
+  pointer-events: none;
+}
+.aisc-avatar {
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  flex: none;
+  position: relative;
+  z-index: 1;
+}
+.aisc-header-text { min-inline-size: 0; flex: 1 1 auto; position: relative; z-index: 1; }
+/* One line, always: at a narrow width a wrapped title pushes the status
+   under it and the header grows a second row. An ellipsis is the smaller
+   loss. */
+.aisc-title {
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aisc-status { font-size: 12.5px; opacity: 0.85; display: flex; align-items: center; gap: 6px; }
+.aisc-status::before {
+  content: "";
+  inline-size: 7px; block-size: 7px;
+  border-radius: 50%;
+  background: #3ecf8e;
+  flex: none;
+}
+ai-support-chat[data-offline] .aisc-status::before { background: var(--aisc-danger); }
+
+.aisc-hbtn {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 9px;
+  opacity: 0.85;
+  line-height: 0;
+  position: relative;
+  z-index: 1;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.aisc-hbtn:hover { opacity: 1; background: rgba(255, 255, 255, 0.16); }
+.aisc-hbtn:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.aisc-hbtn svg { inline-size: 18px; block-size: 18px; }
+
+/* ── Message log ─────────────────────────────────────────────────────── */
+.aisc-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--aisc-surface-alt);
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--aisc-scroll) transparent;
+}
+
+/* Scrollbars, themed to the panel rather than the browser default */
+.aisc-log::-webkit-scrollbar,
+.aisc-input::-webkit-scrollbar { inline-size: 9px; }
+.aisc-log::-webkit-scrollbar-track,
+.aisc-input::-webkit-scrollbar-track { background: transparent; }
+.aisc-log::-webkit-scrollbar-thumb,
+.aisc-input::-webkit-scrollbar-thumb {
+  background: var(--aisc-scroll);
+  border-radius: 999px;
+  border: 2.5px solid transparent;
+  background-clip: padding-box;
+}
+.aisc-log::-webkit-scrollbar-thumb:hover,
+.aisc-input::-webkit-scrollbar-thumb:hover { background: var(--aisc-scroll-hover); background-clip: padding-box; }
+.aisc-input { scrollbar-width: thin; scrollbar-color: var(--aisc-scroll) transparent; }
+.aisc-row { display: flex; gap: 8px; align-items: flex-end; max-inline-size: 100%; }
+/* A reply whose every word the cards below it already carry. */
+.aisc-row[hidden] { display: none; }
+.aisc-row--user { flex-direction: row-reverse; }
+.aisc-row--bot .aisc-ava {
+  inline-size: 26px; block-size: 26px;
+  border-radius: 50%;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 700;
+  flex: none;
+  margin-block-end: 6px;
+  box-shadow: var(--aisc-shadow-sm);
+}
+.aisc-row--user .aisc-ava { display: none; }
+
+.aisc-msg {
+  max-inline-size: 82%;
+  padding: 10px 13px;
+  border-radius: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: aisc-in 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  box-shadow: var(--aisc-shadow-sm);
+}
+@keyframes aisc-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.aisc-msg--bot {
+  background: var(--aisc-bubble-bot);
+  border: 1px solid var(--aisc-border);
+  border-end-start-radius: 5px;
+}
+.aisc-msg--user {
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  border-end-end-radius: 5px;
+}
+.aisc-msg--system {
+  align-self: center;
+  max-inline-size: 100%;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--aisc-text-muted);
+  background: none;
+  box-shadow: none;
+  padding: 2px 8px;
+  animation: none;
+}
+.aisc-row--system { justify-content: center; }
+
+/* Rich text inside bot bubbles */
+.aisc-msg ul,
+.aisc-msg ol { margin: 6px 0 2px; padding-inline-start: 20px; white-space: normal; }
+.aisc-msg ol { list-style: decimal; }
+.aisc-msg ol li::marker { color: var(--aisc-text-muted); font-variant-numeric: tabular-nums; }
+.aisc-msg li { margin: 3px 0; }
+.aisc-msg strong { font-weight: 650; }
+.aisc-msg a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.aisc-msg--bot a { color: var(--aisc-accent); font-weight: 500; }
+@media (prefers-color-scheme: dark) {
+  ai-support-chat:not([data-force-light]) .aisc-msg--bot a { color: #8fb4ff; }
+}
+
+/* ── Product cards ───────────────────────────────────────────────────── */
+/* One product = one card, so several products read as separate objects
+   rather than one run-on paragraph. */
+.aisc-card {
+  /* Cards are now emitted with no whitespace between them, so this margin is
+     the only gap — and adjacent cards collapse it to a single 8px. */
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--aisc-border);
+  border-radius: 14px;
+  background: var(--aisc-surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.aisc-card:first-child { margin-block-start: 4px; }
+.aisc-card + .aisc-card { margin-block-start: 8px; }
+.aisc-card:last-child { margin-block-end: 2px; }
+.aisc-card .aisc-img-wrap { margin: 0; border: 0; box-shadow: none; }
+.aisc-card ul,
+.aisc-card ol { margin: 0; }
+
+.aisc-ptitle {
+  font-weight: 650;
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+/* Order state pill. Tone is derived from the status word, so "Delivered" and
+   "Cancelled" are told apart at a glance rather than read. */
+.aisc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  color: var(--tone);
+  --tone: var(--aisc-text-muted);
+}
+.aisc-state::before {
+  content: "";
+  inline-size: 6px; block-size: 6px;
+  border-radius: 50%;
+  background: var(--tone);
+  flex: none;
+}
+.aisc-state[data-tone="ok"]   { --tone: var(--aisc-ok); }
+.aisc-state[data-tone="info"] { --tone: var(--aisc-info); }
+.aisc-state[data-tone="warn"] { --tone: var(--aisc-warn); }
+.aisc-state[data-tone="crit"] { --tone: var(--aisc-danger); }
+
+.aisc-stateline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0; }
+.aisc-stateline .aisc-opts-label { margin: 0; }
+
+/* Variant chips — sizes and colours, scannable at a glance instead of
+   buried in a sentence. Sold-out values stay visible but read as unavailable,
+   because "which sizes are gone" is itself the answer to a common question. */
+.aisc-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 2px 0;
+}
+.aisc-opts-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--aisc-text-muted);
+}
+.aisc-opts-row { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* One question, one line. The row scrolls sideways with the same arrows as
+   every other strip in the panel, so a product with thirty finishes takes no
+   more height than one with three. */
+.aisc-opt-group { position: relative; }
+.aisc-opts-arrow {
+  position: absolute;
+  inset-block-end: 4px;
+  z-index: 2;
+  inline-size: 28px;
+  block-size: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--aisc-bubble-bot);
+  color: var(--aisc-text);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  transition: background-color 0.15s ease;
+}
+.aisc-opts-arrow:hover { background: #464a50; }
+.aisc-opts-arrow[hidden] { display: none; }
+.aisc-opts-arrow svg { inline-size: 15px; block-size: 15px; }
+.aisc-opts-arrow--next { inset-inline-end: -2px; }
+.aisc-opts-arrow--prev { inset-inline-start: -2px; transform: rotate(180deg); }
+.aisc-opt {
+  display: inline-block;
+  padding: 3px 9px;
+  border: 1px solid var(--aisc-border);
+  border-radius: 999px;
+  background: var(--aisc-surface);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.aisc-opt--out {
+  color: var(--aisc-text-muted);
+  border-style: dashed;
+  background: transparent;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.aisc-opt--more {
+  border-style: dashed;
+  color: var(--aisc-text-muted);
+}
+
+/* Call to action — a link alone on its line. Full width so it reads as a
+   button and never wraps into an unreadable raw URL. */
+.aisc-cta {
+  display: block;
+  margin: 8px 0 2px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text) !important;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none !important;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+.aisc-cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.aisc-cta:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+.aisc-card .aisc-cta { margin-block-end: 0; }
+
+/* Product images embedded in assistant replies */
+.aisc-img-wrap {
+  display: block;
+  margin: 8px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--aisc-surface-alt);
+  border: 1px solid var(--aisc-border);
+  box-shadow: var(--aisc-shadow-sm);
+}
+.aisc-product-img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 11px;
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.aisc-product-img:hover {
+  transform: scale(1.02);
+}
+
+.aisc-time {
+  font-size: 10.5px;
+  color: var(--aisc-text-muted);
+  padding: 0 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex: none;
+  align-self: flex-end;
+  margin-block-end: 4px;
+}
+.aisc-row:hover .aisc-time { opacity: 1; }
+
+/* Escalation banner */
+.aisc-esc {
+  align-self: stretch;
+  max-inline-size: 100%;
+  background: color-mix(in srgb, var(--aisc-ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--aisc-ok) 42%, transparent);
+  color: var(--aisc-text);
+  font-size: 13.5px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  animation: aisc-in 0.24s ease both;
+}
+.aisc-esc svg { flex: none; margin-block-start: 1px; color: var(--aisc-ok); }
+
+/* Ticket chip with copy */
+.aisc-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-block-start: 8px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px dashed var(--aisc-border);
+  background: var(--aisc-surface-alt);
+  font-size: 12.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: pointer;
+  color: var(--aisc-text);
+}
+.aisc-ticket:hover { border-style: solid; }
+.aisc-ticket svg { inline-size: 13px; block-size: 13px; }
+
+/* Retry */
+.aisc-retry {
+  margin-block-start: 8px;
+  border: 1px solid var(--aisc-border);
+  background: var(--aisc-surface);
+  color: var(--aisc-text);
+  border-radius: 8px;
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.aisc-retry:hover { background: var(--aisc-surface-alt); }
+
+/* Typing */
+/* ── Thinking ────────────────────────────────────────────────────────── */
+.aisc-typing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+.aisc-typing-mark {
+  flex: none;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  background: var(--aisc-text);
+  animation: aisc-think 1.4s ease-in-out infinite;
+}
+@keyframes aisc-think {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+.aisc-typing-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--aisc-text);
+}
+
+/* One, then two, then three — all three hold their place in the line, so the
+   sentence in front of them never shifts as they come and go. */
+.aisc-dots span {
+  opacity: 0;
+  animation-duration: 1.4s;
+  animation-iteration-count: infinite;
+  /* Stepped, not eased: a dot in a loader appears, it does not fade in. */
+  animation-timing-function: steps(1, end);
+}
+.aisc-dots span:nth-child(1) { animation-name: aisc-dot-1; }
+.aisc-dots span:nth-child(2) { animation-name: aisc-dot-2; }
+.aisc-dots span:nth-child(3) { animation-name: aisc-dot-3; }
+@keyframes aisc-dot-1 { 0% { opacity: 0; } 25%, 100% { opacity: 1; } }
+@keyframes aisc-dot-2 { 0%, 25% { opacity: 0; } 50%, 100% { opacity: 1; } }
+@keyframes aisc-dot-3 { 0%, 50% { opacity: 0; } 75%, 100% { opacity: 1; } }
+
+/* Jump to latest */
+.aisc-jump {
+  position: absolute;
+  inset-inline-end: 14px;
+  inset-block-end: 132px;
+  inline-size: 34px; block-size: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--aisc-border);
+  background: var(--aisc-surface);
+  color: var(--aisc-text);
+  box-shadow: var(--aisc-shadow-sm);
+  cursor: pointer;
+  display: none;
+  place-items: center;
+  z-index: 3;
+}
+.aisc-jump[data-show] { display: grid; }
+.aisc-jump svg { inline-size: 16px; block-size: 16px; }
+
+/* ── Quick replies ───────────────────────────────────────────────────── */
+.aisc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 4px 14px 12px;
+  background: var(--aisc-surface-alt);
+  flex: none;
+}
+.aisc-chips:empty { display: none; }
+.aisc-chip {
+  border: 1px solid var(--aisc-border);
+  background: var(--aisc-surface);
+  color: var(--aisc-text);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease;
+  animation: aisc-in 0.24s ease both;
+}
+.aisc-chip:hover { background: var(--aisc-surface-alt); transform: translateY(-1px); }
+
+/* ── Composer ────────────────────────────────────────────────────────── */
+.aisc-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 11px 12px;
+  border-block-start: 1px solid var(--aisc-border);
+  background: var(--aisc-surface);
+  flex: none;
+}
+.aisc-input {
+  flex: 1 1 auto;
+  resize: none;
+  border: 1px solid var(--aisc-border);
+  border-radius: 13px;
+  padding: 10px 13px;
+  font: inherit;
+  font-size: 16px; /* 16px prevents iOS zoom-on-focus */
+  color: var(--aisc-text);
+  background: var(--aisc-surface-alt);
+  max-block-size: 120px;
+  min-block-size: 42px;
+  transition: border-color 0.15s ease;
+}
+.aisc-input::placeholder { color: var(--aisc-text-muted); opacity: 1; }
+.aisc-input:focus { outline: none; border-color: var(--aisc-accent); }
+.aisc-input:disabled { opacity: 0.6; }
+.aisc-send {
+  flex: none;
+  inline-size: 42px; block-size: 42px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.aisc-send:hover:not(:disabled) { transform: scale(1.05); }
+.aisc-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.aisc-footnote {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--aisc-text-muted);
+  padding: 0 12px 10px;
+  background: var(--aisc-surface);
+  flex: none;
+}
+
+.aisc-sr {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-panel, .aisc-launcher, .aisc-msg, .aisc-chip, .aisc-esc, .aisc-send { transition: none; animation: none; }
+  .aisc-launcher-label { transition: none; }
+  .aisc-typing-mark, .aisc-dots span { animation: none; opacity: 1; }
+  .aisc-launcher-wrap::after { animation: none; }
+  .aisc-log { scroll-behavior: auto; }
+}
+
+/* Quick replies — a trailing numbered list rendered as tappable buttons */
+.aisc-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-block-start: 10px;
+}
+.aisc-quick-btn {
+  text-align: start;
+  border: 1px solid var(--aisc-border);
+  background: var(--aisc-surface);
+  color: var(--aisc-text);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  animation: aisc-in 0.24s ease both;
+}
+.aisc-quick-btn:hover {
+  background: var(--aisc-surface-alt);
+  border-color: var(--aisc-text-muted);
+  transform: translateY(-1px);
+}
+.aisc-quick-btn:active { transform: translateY(0); }
+/* The one picked from a list that stays on screen. */
+.aisc-quick-btn[aria-pressed="true"] { border-color: var(--aisc-text); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .aisc-quick-btn { animation: none; transition: none; }
+  .aisc-quick-btn:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  }
+
+/* ===========================================================================
+   Assistant skin — dark panel
+   ---------------------------------------------------------------------------
+   One charcoal surface with no internal chrome: header, conversation and
+   composer share a ground, so the only edges in the panel are the things the
+   shopper can act on. White is the single accent, which is why every primary
+   control — Add to bag, Start a new chat, Send — is the same white pill.
+
+   Loaded last so these rules win on equal specificity; the base sheet above
+   stays generic and reusable, this layer is the only brand-specific part.
+   =========================================================================== */
+
+ai-support-chat {
+  --aisc-accent: #ffffff;        /* the one accent: primary buttons and links */
+  --aisc-accent-text: #16181b;   /* ink that sits on white */
+  --aisc-surface: #242424;       /* the panel ground, header to composer */
+  --aisc-surface-alt: #242424;   /* the conversation shares it — no seam */
+  --aisc-bubble-bot: #35383d;    /* one step up: cards, thumbnails, tool pill */
+  --aisc-ink: #1c1e21;           /* one step down: user bubbles, field, menu */
+  --aisc-text: #f2f3f5;
+  --aisc-text-muted: #a6abb3;
+  --aisc-border: rgba(255, 255, 255, 0.11);
+  --aisc-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  --aisc-shadow-sm: none;
+  --aisc-radius: 24px;
+  --aisc-scroll: rgba(255, 255, 255, 0.18);
+  --aisc-scroll-hover: rgba(255, 255, 255, 0.32);
+  --aisc-link: #ffffff;
+  /* The reference widget's own box: 480 x 720, held 24px off the edge of the
+     window and never taller than the window less those margins. */
+  --aisc-panel-w: min(480px, calc(100vw - 48px));
+  --aisc-panel-h: min(720px, calc(100dvh - 48px));
+  --aisc-panel-right: max(24px, env(safe-area-inset-right));
+  /* Lifted off the base sheet's light-ground values: state has to stay legible
+     on charcoal whatever the OS prefers, since this panel is dark either way. */
+  --aisc-ok: #3ecf7f;
+  --aisc-danger: #ff7a7f;
+  --aisc-info: #7aa7ff;
+  --aisc-warn: #e0a04a;
+}
+
+/* The composer lost its footnote and gained a taller field, so the jump button
+   needs to sit at the new height. */
+.aisc-jump { inset-block-end: 118px; }
+
+/* The panel is dark whatever the OS prefers, so the base sheet's dark block —
+   which is more specific than the plain element selector above — is answered
+   with the same values rather than deleted. Drop this skin and the base sheet
+   still behaves. */
+@media (prefers-color-scheme: dark) {
+  ai-support-chat:not([data-force-light]) {
+    --aisc-surface: #242424;
+    --aisc-surface-alt: #242424;
+    --aisc-bubble-bot: #35383d;
+    --aisc-text: #f2f3f5;
+    --aisc-text-muted: #a6abb3;
+    --aisc-border: rgba(255, 255, 255, 0.11);
+    --aisc-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+    --aisc-shadow-sm: none;
+    --aisc-scroll: rgba(255, 255, 255, 0.18);
+    --aisc-scroll-hover: rgba(255, 255, 255, 0.32);
+  }
+  ai-support-chat:not([data-force-light]) .aisc-msg--bot a { color: var(--aisc-link); }
+}
+
+
+
+/* ── Launcher: white disc at rest, black pill on hover ───────────────── */
+/* The disc is the constant; the ink pill and the label are what arrive. */
+ai-support-chat {
+  --aisc-launcher-size: 64px;
+  --aisc-launcher-bg: #0d0d0d;
+  --aisc-launcher-fg: #ffffff;
+  --aisc-launcher-disc: #ffffff;
+  --aisc-launcher-disc-fg: #0d0d0d;
+}
+.aisc-launcher {
+  box-shadow: 0 6px 22px rgba(43, 41, 38, 0.26);
+}
+.aisc-launcher-disc svg { inline-size: 28px; block-size: 28px; }
+.aisc-launcher-wrap::after { border-color: rgba(43, 41, 38, 0.35); }
+
+/* ── Header: no bar, just the row ────────────────────────────────────── */
+/* It shares the panel's ground and carries no rule underneath, so the title
+   and its controls float on the conversation rather than sitting on a band. */
+.aisc-header {
+  padding: 16px 18px 12px;
+  gap: 12px;
+  background: transparent;
+  color: var(--aisc-text);
+}
+.aisc-header::after { display: none; }
+/* The same white disc and sparkle as the launcher — the button the shopper
+   pressed is the face that answers them. */
+.aisc-avatar {
+  inline-size: 40px;
+  block-size: 40px;
+  background: #ffffff;
+  color: #101112;
+  border: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.aisc-avatar svg { inline-size: 21px; block-size: 21px; }
+.aisc-logo {
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 50%;
+  object-fit: contain;
+  padding: 3px;
+}
+.aisc-title { font-weight: 600; font-size: 16.5px; letter-spacing: 0.01em; }
+/* The controls sit together as one tight group, like the cart drawer's. */
+.aisc-hactions { display: flex; align-items: center; gap: 4px; flex: none; }
+.aisc-hbtn { padding: 8px; border-radius: 8px; opacity: 1; }
+.aisc-hbtn:hover { background: rgba(255, 255, 255, 0.10); }
+.aisc-hbtn:active { background: rgba(255, 255, 255, 0.16); }
+.aisc-hbtn svg { inline-size: 24px; block-size: 24px; }
+
+/* The status line is a live label, not a badge — the dot alone carries the
+   state, so the four tones still mean what they mean. */
+.aisc-header .aisc-state {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--aisc-text-muted);
+  margin-block-start: 1px;
+}
+.aisc-header .aisc-state::before { inline-size: 6px; block-size: 6px; background: var(--tone); }
+
+/* Something is in the cart. A dot rather than a count: the number is one tap
+   away, and a badge that has to be read competes with the conversation. */
+.aisc-cart::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 9px;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--aisc-accent);
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.18s ease, transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+ai-support-chat[data-cart] .aisc-cart::after { opacity: 1; transform: none; }
+
+/* ── Header menu ─────────────────────────────────────────────────────── */
+/* Everything that is not a one-tap action lives behind the kebab: starting
+   over, the policies, and the line about the assistant being a machine. */
+.aisc-menu-wrap { position: relative; display: flex; }
+.aisc-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 8px);
+  inset-inline-end: 0;
+  inline-size: 290px;
+  padding: 16px;
+  border: 1px solid var(--aisc-border);
+  border-radius: 16px;
+  background: var(--aisc-ink);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  z-index: 3;
+  text-align: start;
+}
+.aisc-menu-title { font-size: 15px; font-weight: 600; }
+.aisc-menu-copy {
+  margin: 6px 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aisc-text-muted);
+}
+.aisc-menu-btn {
+  inline-size: 100%;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.aisc-menu-btn:hover { background: #e4e6e9; }
+.aisc-menu-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-start: 14px;
+  padding-block-start: 13px;
+  border-block-start: 1px solid var(--aisc-border);
+  font-size: 13px;
+}
+.aisc-menu-links:empty { display: none; }
+.aisc-menu-links a { color: var(--aisc-text); text-decoration: none; }
+.aisc-menu-links a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.aisc-menu-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--aisc-text-muted);
+}
+
+/* ── Conversation ────────────────────────────────────────────────────── */
+/* The assistant is the panel, so what it says is set on the ground itself —
+   no bubble, no avatar, no gutter. Only the shopper's own words get a shape,
+   which makes the two voices readable at a glance without any decoration. */
+.aisc-log { padding: 6px 18px 12px; gap: 14px; }
+
+.aisc-msg { border-radius: 18px; padding: 11px 15px; }
+.aisc-msg--bot {
+  background: none;
+  border: 0;
+  padding: 0;
+  max-inline-size: 100%;
+  font-size: 16px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+.aisc-msg--user {
+  background: var(--aisc-ink);
+  color: var(--aisc-text);
+  border-end-end-radius: 6px;
+  font-size: 14.5px;
+}
+.aisc-msg--bot a { color: var(--aisc-link); }
+/* No avatar means no gutter to reserve — everything the assistant returns
+   spans the full column. */
+.aisc-row--bot .aisc-ava { display: none; }
+
+.aisc-card { background: var(--aisc-bubble-bot); border-color: var(--aisc-border); }
+
+/* ── Welcome ─────────────────────────────────────────────────────────── */
+/* The opening is a greeting, not a message: a heading and a line of invitation
+   rather than a bubble the shopper has to read as speech. */
+.aisc-welcome { padding-block: 6px 2px; }
+.aisc-welcome-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.aisc-welcome-sub {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--aisc-text);
+}
+
+/* ── Collection row ──────────────────────────────────────────────────── */
+/* A shelf of places to start, scrolled sideways so it costs one row of height
+   however many the merchant picks. */
+.aisc-cats-wrap { position: relative; margin-block-start: 16px; }
+.aisc-cats-wrap:empty { display: none; }
+.aisc-cats {
+  display: flex;
+  gap: 20px;
+  perspective: 900px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* The row runs to the panel edge so the next card is visibly cut off — the
+     clearest possible sign that it scrolls. The scroll padding matches, or the
+     first card snaps to 18px and the row opens already nudged off its start. */
+  margin-inline: -18px;
+  padding-inline: 18px;
+  scroll-padding-inline-start: 18px;
+  /* Room above for the tinted card, which sits proud of the photograph and
+     swings further out on hover. */
+  padding-block-start: 12px;
+}
+.aisc-cats::-webkit-scrollbar { display: none; }
+.aisc-cat {
+  flex: none;
+  inline-size: 136px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  /* The tilt on hover is a 3D one, so the row is the thing with depth. */
+  transform-style: preserve-3d;
+}
+.aisc-cat-frame { position: relative; display: block; }
+/* The tinted card behind the photograph. It sits a little high and a little
+   right of centre, barely off-square at rest, and swings out under the pointer
+   — the photograph itself stays flat and readable. */
+.aisc-cat-back {
+  position: absolute;
+  inset-block-start: -8px;
+  inset-inline-start: 12px;
+  inline-size: calc(100% - 24px);
+  block-size: calc(100% - 24px);
+  border-radius: 24px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  transform: rotate(-1deg);
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.aisc-cat:hover .aisc-cat-back,
+.aisc-cat:focus-visible .aisc-cat-back { transform: rotate(-11deg); }
+
+.aisc-cat-img {
+  position: relative;
+  inline-size: 136px;
+  block-size: 136px;
+  border-radius: 32px;
+  object-fit: cover;
+  background: var(--aisc-bubble-bot);
+  display: block;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+}
+.aisc-cat:hover .aisc-cat-img { transform: rotate(4deg); filter: brightness(0.96); }
+.aisc-cat:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 4px; border-radius: 16px; }
+/* The label takes a pill on hover — the card is a button, and this is the one
+   part of it that can show a pressable shape without moving the picture. */
+.aisc-cat-label {
+  align-self: center;
+  max-inline-size: 100%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.32;
+  font-weight: 600;
+  transition: background-color 0.18s ease;
+}
+.aisc-cat:hover .aisc-cat-label,
+.aisc-cat:focus-visible .aisc-cat-label { background: rgba(255, 255, 255, 0.14); }
+
+/* Fetched a moment after the welcome, so it arrives rather than appearing. */
+.aisc-cats-wrap[data-late] { animation: aisc-in 0.28s ease both; }
+.aisc-cats-arrow {
+  position: absolute;
+  /* Centred on the image band rather than the whole card, so a two-line label
+     underneath does not drag the arrow off the picture. */
+  inset-block-start: 80px;
+  transform: translateY(-50%);
+  z-index: 2;
+  inline-size: 34px;
+  block-size: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--aisc-border);
+  border-radius: 50%;
+  background: var(--aisc-ink);
+  color: var(--aisc-text);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s ease;
+}
+.aisc-cats-arrow:hover { background: #2a2d31; }
+.aisc-cats-arrow[hidden] { display: none; }
+.aisc-cats-arrow svg { inline-size: 17px; block-size: 17px; }
+.aisc-cats-arrow--next { inset-inline-end: -6px; }
+.aisc-cats-arrow--prev {
+  inset-inline-start: -6px;
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* The privacy line, above the first message. */
+.aisc-notice {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--aisc-text-muted);
+  padding: 2px 16px 6px;
+  flex: none;
+}
+.aisc-notice a { color: var(--aisc-link); text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Composer: one field, Send tucked inside ─────────────────────────── */
+/* The button lives in the field rather than beside it, and only appears once
+   there is something to send — so an empty composer is a single clean shape. */
+.aisc-form {
+  padding: 8px 16px 16px;
+  gap: 0;
+  background: var(--aisc-surface);
+  border-block-start: 0;
+  display: block;
+}
+.aisc-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 6px;
+  border: 1px solid var(--aisc-border);
+  border-radius: 26px;
+  background: var(--aisc-ink);
+  transition: border-color 0.15s ease;
+}
+.aisc-field:focus-within { border-color: rgba(255, 255, 255, 0.28); }
+.aisc-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 15px;
+  line-height: 21px;
+  padding: 9px 6px 9px 12px;
+  min-block-size: 40px;
+  /* A scrollbar track inside a rounded field reads as a rendering fault, and
+     the field grows to fit instead of scrolling until it hits its ceiling. The
+     JS turns overflow back on at that point; the bar just stays hidden. */
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.aisc-input::-webkit-scrollbar { display: none; }
+.aisc-input:focus { border-color: transparent; }
+
+/* No visible scrollbars anywhere in the panel. The conversation still scrolls
+   by wheel, touch and keyboard; the "jump to latest" button covers the one
+   thing the bar was telling anyone — that there is more further down. */
+.aisc-log {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.aisc-log::-webkit-scrollbar { display: none; }
+
+/* iOS zooms the page when a field under 16px takes focus. Only phones need the
+   larger text, so the desktop pill keeps its proportions. */
+@media (max-width: 480px) {
+  .aisc-input { font-size: 16px; line-height: 22px; padding: 9px 6px 9px 12px; min-block-size: 41px; }
+}
+
+.aisc-send {
+  flex: none;
+  inline-size: 36px;
+  block-size: 36px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: none;
+  /* Held out of the way until the shopper has typed, then it arrives. */
+  opacity: 0;
+  transform: scale(0.7);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.aisc-send svg { inline-size: 18px; block-size: 18px; }
+.aisc-form[data-typing] .aisc-send {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.aisc-form[data-typing] .aisc-send:disabled { opacity: 0.4; pointer-events: none; }
+.aisc-send:hover:not(:disabled) { transform: scale(1.06); background: #e4e6e9; }
+.aisc-chip {
+  border-radius: 999px;
+  background: var(--aisc-bubble-bot);
+  border-color: transparent;
+}
+.aisc-chip:hover { background: #3e4247; }
+.aisc-chips { padding: 0 18px 12px; }
+/* Suggested replies are a row of choices, not a stacked menu — the same pills
+   the starter chips use, so "what can I ask" looks the same wherever it is. */
+.aisc-quick {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 14px;
+}
+.aisc-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  /* A floor, not a height: a long product name wraps inside the pill instead
+     of running off the side of the panel. Short chips look exactly as before. */
+  min-height: 40px;
+  max-width: 100%;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 16px;
+  line-height: 1.35;
+  text-align: start;
+  background: transparent;
+  border-color: #666666;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.aisc-quick-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: #8a8a8a; }
+
+/* Everything that comes after a reply — its follow-ups and its actions — in
+   one strip below whatever cards the reply brought with it. */
+.aisc-after {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-block-start: -4px;
+}
+.aisc-after:empty { display: none; }
+.aisc-after .aisc-quick { margin-block-start: 12px; }
+/* A reply that is asking has its answers lifted above its cards: same gap
+   under the message as in the strip, and room before the cards begin. */
+.aisc-row + .aisc-quick { margin-block-start: 8px; margin-block-end: 4px; }
+
+/* ── Message actions ─────────────────────────────────────────────────── */
+/* Under a finished reply, quiet until the eye goes looking for them. */
+.aisc-acts {
+  display: flex;
+  gap: 2px;
+  margin-block-start: 10px;
+}
+.aisc-act {
+  inline-size: 30px;
+  block-size: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--aisc-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.aisc-act:hover { background: rgba(255, 255, 255, 0.10); color: var(--aisc-text); }
+.aisc-act:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 1px; }
+.aisc-act[data-on] { color: var(--aisc-text); background: rgba(255, 255, 255, 0.14); }
+.aisc-act svg { inline-size: 17px; block-size: 17px; }
+
+/* ── Docked to the side ──────────────────────────────────────────────── */
+/* The same panel, pinned to the edge of the window and run full height, for
+   shopping alongside the page instead of on top of a corner of it. Every
+   property that differs between the two states is animatable, so the panel
+   grows into the rail and shrinks back out of it. */
+.aisc-panel {
+  block-size: var(--aisc-panel-h);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1),
+    inline-size 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    block-size 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    inset-block-end 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    inset-inline-end 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.4s ease;
+}
+ai-support-chat[data-dock="side"] .aisc-panel {
+  inset-block-end: 0;
+  /* `auto` on the start edge so a centred launcher does not leave the panel
+     anchored to the middle of the window while it docks. */
+  inset-inline: auto 0;
+  margin-inline-start: 0;
+  inline-size: min(var(--aisc-panel-w), 100vw);
+  block-size: 100dvh;
+  border-radius: 0;
+  border-block: 0;
+  border-inline-end: 0;
+  transform-origin: right center;
+}
+ai-support-chat[data-dock="side"]:not([open]) .aisc-panel { transform: translateX(22px); }
+
+/* A phone has nothing to dock to: the panel is the screen either way. Last in
+   the sheet so it wins over both the floating and the docked geometry. */
+@media (max-width: 480px) {
+  .aisc-panel,
+  ai-support-chat[data-dock="side"] .aisc-panel {
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100dvh;
+    margin-inline-start: 0;
+    border-radius: 0;
+    border: 0;
+  }
+}
+/* On a phone the panel is already the whole screen, so there is nothing to
+   dock it to. */
+@media (max-width: 480px) {
+  .aisc-dock { display: none; }
+}
+
+/* ── Streaming ───────────────────────────────────────────────────────── */
+/* A caret on the bubble that is still being written. It is an ::after on the
+   bubble rather than a character in the text, so it cannot end up saved into
+   the transcript or read out by a screen reader mid-sentence. */
+.aisc-streaming::after {
+  content: "";
+  display: inline-block;
+  inline-size: 2px;
+  block-size: 1em;
+  margin-inline-start: 2px;
+  vertical-align: -0.16em;
+  background: currentColor;
+  opacity: 0.65;
+  animation: aisc-caret 1s steps(1) infinite;
+}
+@keyframes aisc-caret {
+  0%, 49%   { opacity: 0.65; }
+  50%, 100% { opacity: 0; }
+}
+/* An empty bubble would collapse to a sliver before the first token lands. */
+.aisc-streaming:empty { min-inline-size: 26px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-streaming::after { animation: none; opacity: 0.65; }
+}
+
+@media (max-width: 480px) {
+  ai-support-chat { --aisc-launcher-size: 58px; }
+}
+
+/* Nothing hovers on a touch screen, so the pill would never open there. The
+   one-time peek still introduces it; after that it is a plain disc. */
+@media (hover: none) {
+  .aisc-launcher { cursor: grab; }
+}
+
+/* ── Add to cart ─────────────────────────────────────────────────────── */
+/* Sizes read live from the storefront, so a chip is only ever offered for a
+   variant the store will actually accept. */
+.aisc-buy:empty { display: none; }
+.aisc-buy-inner { display: flex; flex-direction: column; gap: 7px; margin-block-start: 4px; }
+.aisc-buy-row {
+  display: flex;
+  /* One line, scrolled sideways — see the note on .aisc-opt-group. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Room for the arrow to sit over the last chip rather than beside it. */
+  padding-inline-end: 6px;
+}
+.aisc-buy-row::-webkit-scrollbar { display: none; }
+.aisc-buy-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--aisc-accent);
+  border-radius: 999px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.aisc-buy-btn:hover:not(:disabled) { background: #e4e6e9; border-color: #e4e6e9; }
+.aisc-buy-btn:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+/* Sold-out sizes stay visible and struck through: "which sizes are gone" is
+   itself the answer to a common question, so hiding them loses information. */
+.aisc-buy-btn--out {
+  background: transparent;
+  color: var(--aisc-text-muted);
+  border-color: var(--aisc-border);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+.aisc-buy-btn--added { background: transparent; border-color: var(--aisc-ok); color: var(--aisc-ok); }
+.aisc-buy-link {
+  align-self: flex-start;
+  font-size: 12.5px;
+  color: var(--aisc-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.aisc-added { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--aisc-ok); }
+.aisc-added svg { flex: none; }
+/* "View cart" is a link when it navigates and a button when it opens the
+   drawer, so both are styled here to read as the same one control. */
+.aisc-viewcart {
+  margin-inline-start: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  color: var(--aisc-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.aisc-viewcart:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+.aisc-buy-err { font-size: 12.5px; color: var(--aisc-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-buy-btn { transition: none; }
+}
+
+/* ── Product cards ───────────────────────────────────────────────────── */
+/* Stacked, full width, one card per product. A card carries everything needed
+   to decide and buy — photo, price, what is actually in stock, and the two
+   actions — so the shopper never has to leave the conversation to act. */
+/* The collection these cards belong to. The name is the answer to "tell me
+   about Autumn Layers"; the cards under it are the rest of it. */
+.aisc-pcards-head {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--aisc-text);
+  margin-block-end: 2px;
+}
+
+/* Full width. The bot bubble and its avatar gutter are gone — the assistant's
+   words already run the width of the panel, so a card indented to 82% of it
+   would read as a reply to the reply. */
+.aisc-pcards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-block-start: -2px;
+  margin-inline-start: 0;
+  max-inline-size: 100%;
+}
+
+.aisc-pcard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #666666;
+  border-radius: 16px;
+  /* An outline on the panel rather than a block laid over it. */
+  background: transparent;
+  color: var(--aisc-text);
+  text-decoration: none;
+  animation: aisc-in 0.24s ease both;
+}
+
+/* A row is a question waiting to be asked, so it says so under the pointer.
+   Its own controls keep their own hover states and take the click first. */
+.aisc-pcard--list {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* A list row: the photograph on the left, everything actionable on the right,
+   and what the assistant said about it underneath the pair. */
+.aisc-pcard-top {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 14px;
+  /* Stretched, not top-aligned, so the column beside the photograph is as tall
+     as it is — which is what lets the button sit on the photograph's bottom
+     edge rather than floating under the price with a gap beneath it. */
+  align-items: stretch;
+}
+.aisc-pcard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-inline-size: 0;
+}
+/* The title and price sit under the top of the photograph; the button drops to
+   its foot. When the options push the column taller than the photograph, the
+   auto margin collapses and everything simply stacks. */
+.aisc-pcard--list .aisc-pcard-main .aisc-pcard-add { margin-block-start: auto; }
+
+/* The title is the link to the product page — underlined, because in a card
+   full of buttons an unmarked link is invisible. */
+.aisc-pcard-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--aisc-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.aisc-pcard-title:hover { text-decoration-thickness: 2px; }
+
+/* A fixed, shallow band rather than a free-running portrait: the card's job is
+   to let someone decide without scrolling past the photo to reach the price and
+   the buy button. The photo is contained, not cropped — a garment shown whole
+   is what the shopper is deciding on; the band's ground fills the rest. */
+/* The tile clips its photograph, so the rank badge sits on a wrapper rather
+   than inside it — tucked into the top-left corner of the picture, not hung
+   off the outside of it. */
+.aisc-pcard-shot { position: relative; }
+.aisc-pcard-rank {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  /* Border-box, or the padding would carry it past the 32px it is meant to be
+     — the sheet has no global box-sizing. */
+  box-sizing: border-box;
+  inline-size: 32px;
+  block-size: 32px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  /* A corner tab: square into the picture's corner, turned only where it meets
+     the photograph. */
+  border-radius: 0 0 12px 0;
+  background: var(--aisc-ink);
+  color: var(--aisc-text);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* White, always: furniture and clothing are photographed on white, and a dark
+   tile would put a grey box around every cut-out. */
+.aisc-pcard-img {
+  display: block;
+  inline-size: 136px;
+  block-size: 136px;
+  padding: 0;
+  border: 0;
+  border-radius: 32px;
+  overflow: hidden;
+  background: #ffffff;
+  cursor: zoom-in;
+}
+.aisc-pcard-img img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.aisc-pcard-price {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* ── Orders ──────────────────────────────────────────────────────────── */
+/* One card per order, in the same frame the product cards use, so "here are
+   your orders" and "here are some products" read as the same kind of answer. */
+.aisc-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-block-start: -2px;
+}
+.aisc-order {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #666666;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--aisc-text);
+  text-decoration: none;
+  animation: aisc-in 0.24s ease both;
+}
+/* Only the ones that go somewhere say so. */
+a.aisc-order { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+a.aisc-order:hover { background: #3e4247; border-color: rgba(255, 255, 255, 0.2); }
+a.aisc-order:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+
+.aisc-order-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.aisc-order-name {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.aisc-order-meta {
+  font-size: 13px;
+  color: var(--aisc-text-muted);
+  margin-block-start: -4px;
+}
+
+.aisc-order-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.aisc-order-thumb {
+  inline-size: 44px;
+  block-size: 44px;
+  flex: none;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #ffffff;
+}
+.aisc-order-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+.aisc-order-title {
+  font-size: 13.5px;
+  line-height: 1.3;
+  /* Two lines then ellipsis, so every row keeps the same height. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.aisc-order-variant { font-size: 12px; color: var(--aisc-text-muted); }
+.aisc-order-qty {
+  flex: none;
+  font-size: 13px;
+  color: var(--aisc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.aisc-order-more { font-size: 12.5px; color: var(--aisc-text-muted); }
+
+/* What the status means, in the backend's own words. */
+.aisc-order-note {
+  margin: -2px 0 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aisc-text-muted);
+}
+/* The way through to the order itself, now that the card is a container of
+   product cards rather than one big link. */
+.aisc-order-link {
+  align-self: flex-start;
+  margin-block-start: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--aisc-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.aisc-order-link:hover { text-decoration-thickness: 2px; }
+/* A product card sits inside the order card, so it drops its own frame rather
+   than drawing a box within a box. */
+.aisc-order .aisc-pcard {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.aisc-order .aisc-pcard--list:hover { background: none; border-color: transparent; }
+.aisc-order .aisc-pcard + .aisc-pcard { padding-block-start: 12px; border-block-start: 1px solid var(--aisc-border); }
+
+/* ── The fold ────────────────────────────────────────────────────────── */
+/* The rest of a long list, behind one row. Built to read as a card that opens
+   rather than as a link: the same frame as the products it is hiding. */
+.aisc-pmore {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  inline-size: 100%;
+  padding: 12px 14px;
+  border: 1px solid #666666;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  animation: aisc-in 0.24s ease both;
+}
+.aisc-pmore:hover { background: rgba(255, 255, 255, 0.06); }
+.aisc-pmore:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+/* A long collection name wraps inside the row rather than pushing the
+   thumbnail out of it. */
+.aisc-pmore-label { min-inline-size: 0; line-height: 1.35; }
+.aisc-pmore-stack {
+  position: relative;
+  flex: none;
+  inline-size: 46px;
+  block-size: 46px;
+}
+/* A second card peeking out behind the first: the row is hiding a stack, and
+   one thumbnail alone would read as one more product. */
+.aisc-pmore-stack::before {
+  content: "";
+  position: absolute;
+  inset: 4px -5px 4px 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.26);
+}
+.aisc-pmore-stack:empty::before { display: none; }
+.aisc-pmore-stack img {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 9px;
+  object-fit: contain;
+  background: #ffffff;
+  display: block;
+}
+
+/* ── Confirm card ────────────────────────────────────────────────────── */
+/* The assistant asking "this one?" before it puts something in the cart. The
+   product is a settled fact at the top; the only open question is underneath. */
+.aisc-pcard--confirm .aisc-pcard-top {
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.aisc-pcard--confirm .aisc-pcard-img { inline-size: 62px; block-size: 62px; border-radius: 4px; }
+.aisc-pcard--confirm .aisc-pcard-sizes { margin-block-start: 2px; }
+/* Nothing is being added yet, so nothing offers to. */
+.aisc-pcard--confirm .aisc-pcard-add::before { content: none; }
+.aisc-pcard--confirm .aisc-pcard-add { margin-block-start: 4px; }
+/* Confirmed: a settled grey pill carrying a tick, not a live button. */
+ai-support-chat .aisc-pcard-add.aisc-pcard-add--added.aisc-pcard-add--done,
+ai-support-chat .aisc-pcard-add.aisc-pcard-add--added.aisc-pcard-add--done:disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 1;
+  cursor: default;
+  background: #bfc2c7;
+  border-color: #bfc2c7;
+  color: #1f2124;
+}
+.aisc-pcard-add--done svg { inline-size: 16px; block-size: 16px; }
+.aisc-pcard--confirm[data-done] .aisc-buy-btn:disabled:not(.aisc-buy-btn--out) { opacity: 1; cursor: default; }
+
+/* ── Detail card ─────────────────────────────────────────────────────── */
+.aisc-pcard--detail { gap: 8px; padding: 10px; }
+.aisc-pcard--detail .aisc-pcard-title { margin-block-start: 4px; padding-inline: 4px; }
+.aisc-pcard--detail .aisc-pcard-price,
+.aisc-pcard--detail .aisc-pcard-stock,
+.aisc-pcard--detail .aisc-pcard-sizes { padding-inline: 4px; }
+
+/* The photographs, side by side and scrolled. Hairline gaps rather than gutters
+   so the strip reads as one band of film. */
+.aisc-gallery { position: relative; }
+.aisc-gallery-track {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  border-radius: 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: var(--aisc-border);
+}
+.aisc-gallery-track::-webkit-scrollbar { display: none; }
+.aisc-shot {
+  flex: none;
+  inline-size: 47%;
+  block-size: 155px;
+  padding: 0;
+  border: 0;
+  scroll-snap-align: start;
+  background: #ffffff;
+  display: block;
+  cursor: zoom-in;
+}
+/* One photograph fills the band rather than sitting in half of it. */
+.aisc-shot:only-child { inline-size: 100%; }
+.aisc-shot img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  display: block;
+}
+.aisc-gallery-arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  inline-size: 34px;
+  block-size: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 30, 33, 0.62);
+  color: #ffffff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.15s ease;
+}
+.aisc-gallery-arrow:hover { background: rgba(28, 30, 33, 0.86); }
+.aisc-gallery-arrow[hidden] { display: none; }
+.aisc-gallery-arrow svg { inline-size: 18px; block-size: 18px; }
+.aisc-gallery-arrow--next { inset-inline-end: 8px; }
+.aisc-gallery-arrow--prev { inset-inline-start: 8px; transform: translateY(-50%) rotate(180deg); }
+
+/* What the assistant said about this piece, marked as its own voice rather
+   than as store copy — the one place in the panel that steps into the light. */
+.aisc-pcard-note {
+  display: flex;
+  gap: 10px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  background: var(--aisc-note, #dde9fb);
+  color: var(--aisc-note-text, #1b2735);
+}
+.aisc-pcard-note:has(.aisc-pcard-desc:empty) { display: none; }
+.aisc-pcard-note .aisc-pcard-desc {
+  color: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.aisc-pcard-note-mark { flex: none; line-height: 0; margin-block-start: 2px; }
+.aisc-pcard-note-mark svg { inline-size: 16px; block-size: 16px; }
+
+/* ── You might also like ─────────────────────────────────────────────── */
+/* A deck, not a scroller. The track is moved with a transform and each card is
+   turned a flat 8 degrees away from whichever is at the front — so the row
+   reads as a hand of cards being fanned. Everything settles on the same
+   overshooting curve, which is what makes it feel thrown rather than dragged. */
+.aisc-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-block-start: 4px;
+}
+.aisc-recs-head {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.aisc-recs-frame {
+  position: relative;
+  /* Clipped horizontally, with room above and below for a turned card to lean
+     out of the row without being cut off. */
+  overflow: hidden;
+  padding-block: 22px;
+  margin-block: -22px;
+  margin-inline: -18px;
+  padding-inline: 18px;
+}
+.aisc-recs-track {
+  display: flex;
+  gap: 2px;
+  will-change: transform;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* The deck answers a horizontal flick itself; the page keeps the vertical. */
+  touch-action: pan-y;
+}
+.aisc-rec-seat {
+  position: relative;
+  flex: none;
+  transition:
+    rotate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+    z-index 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.aisc-rec {
+  box-sizing: border-box;
+  inline-size: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* Deep at the foot: the two lines sit well clear of the photograph and the
+     card carries a good margin under the price, which is what makes it read as
+     a card rather than a picture with a caption stuck to it. */
+  padding: 12px 12px 24px;
+  border-radius: 32px;
+  background: var(--aisc-bubble-bot);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.34);
+}
+.aisc-rec-shot {
+  position: relative;
+  inline-size: 136px;
+  block-size: 136px;
+  border-radius: 32px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.aisc-rec-shot img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+/* A whisper of black over the photograph, so a bright cut-out does not glare
+   out of the dark card. */
+.aisc-rec-shot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.03);
+  pointer-events: none;
+}
+.aisc-rec-add {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  z-index: 1;
+  min-inline-size: 44px;
+  block-size: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--aisc-border);
+  border-radius: 16px;
+  background: var(--aisc-surface);
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.3s ease-out;
+}
+.aisc-rec-add:hover:not(:disabled) { background: var(--aisc-bubble-bot); }
+.aisc-rec-add:disabled { opacity: 0.4; cursor: not-allowed; }
+.aisc-rec-add.aisc-buy-btn--added { background: var(--aisc-ok); color: #10231a; }
+.aisc-rec-title {
+  margin-block-start: 18px;
+  padding-inline: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--aisc-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  /* One line: a wrapped title would push the prices out of alignment across
+     the row, which is the one thing a deck has to keep. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Plain beside the bold title — the name is what is being scanned. */
+.aisc-rec-price {
+  margin-block-start: 3px;
+  padding-inline: 2px;
+  font-size: 13.5px;
+  color: var(--aisc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.aisc-recs-arrow {
+  position: absolute;
+  inset-block-start: 90px;
+  transform: translateY(-50%);
+  z-index: 60;
+  inline-size: 34px;
+  block-size: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 30, 33, 0.72);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s ease;
+}
+.aisc-recs-arrow:hover { background: rgba(28, 30, 33, 0.92); }
+.aisc-recs-arrow[hidden] { display: none; }
+.aisc-recs-arrow svg { inline-size: 18px; block-size: 18px; }
+.aisc-recs-arrow--next { inset-inline-end: 6px; }
+.aisc-recs-arrow--prev { inset-inline-start: 6px; transform: translateY(-50%) rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-recs-track, .aisc-rec-seat { transition: none; }
+}
+
+/* The option name is a question being asked, not a caption. */
+.aisc-opts-label {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--aisc-text);
+}
+
+/* ── Photo viewer ────────────────────────────────────────────────────── */
+/* A view, not a layer: it takes the panel over so the shopper is still inside
+   the conversation, and the back chevron is the only way on or off. */
+.aisc-viewer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--aisc-surface);
+}
+.aisc-viewer[hidden] { display: none; }
+
+.aisc-viewer-bar { display: flex; align-items: center; flex: none; min-inline-size: 0; }
+/* The chevron and the title are one control. Someone reaching for the way back
+   aims at the words as readily as at the arrow, so both are the button. */
+.aisc-viewer-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: 5px 12px 5px 5px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--aisc-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.aisc-viewer-back:hover { background: rgba(255, 255, 255, 0.10); }
+.aisc-viewer-back:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+/* Only the arrow turns around — rotating the button would stand the title on
+   its head with it. */
+.aisc-viewer-chev {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  transform: rotate(180deg);
+}
+.aisc-viewer-chev svg { inline-size: 21px; block-size: 21px; }
+.aisc-viewer-title {
+  min-inline-size: 0;
+  font-size: 16.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* White, and tall enough to be the reason for opening it. */
+.aisc-viewer-stage {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.aisc-viewer-img {
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* The stage answers a sideways swipe itself and leaves the vertical alone. */
+.aisc-viewer-stage { position: relative; touch-action: pan-y; cursor: grab; user-select: none; }
+.aisc-viewer-stage[data-grabbing] { cursor: grabbing; }
+.aisc-viewer-arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  inline-size: 38px;
+  block-size: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 30, 33, 0.62);
+  color: #ffffff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.15s ease;
+}
+.aisc-viewer-arrow:hover { background: rgba(28, 30, 33, 0.86); }
+.aisc-viewer-arrow:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+.aisc-viewer-arrow[hidden] { display: none; }
+.aisc-viewer-arrow svg { inline-size: 20px; block-size: 20px; }
+.aisc-viewer-arrow--next { inset-inline-end: 10px; }
+.aisc-viewer-arrow--prev { inset-inline-start: 10px; transform: translateY(-50%) rotate(180deg); }
+
+/* Strips a mouse can grab and drag sideways. */
+.aisc-gallery-track[data-grabbing],
+.aisc-cats[data-grabbing],
+.aisc-viewer-thumbs[data-grabbing] { cursor: grabbing; user-select: none; }
+.aisc-gallery-track[data-grabbing] *,
+.aisc-cats[data-grabbing] *,
+.aisc-viewer-thumbs[data-grabbing] * { cursor: grabbing; pointer-events: none; }
+.aisc-gallery-track img,
+.aisc-cats img,
+.aisc-viewer-thumbs img,
+.aisc-recs-track img { -webkit-user-drag: none; user-select: none; }
+.aisc-recs-track { user-select: none; }
+
+.aisc-viewer-thumbs {
+  display: flex;
+  gap: 8px;
+  flex: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.aisc-viewer-thumbs::-webkit-scrollbar { display: none; }
+.aisc-viewer-thumbs[hidden] { display: none; }
+.aisc-viewer-thumb {
+  flex: none;
+  inline-size: 64px;
+  block-size: 64px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.aisc-viewer-thumb img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  display: block;
+}
+.aisc-viewer-thumb:hover { border-color: rgba(255, 255, 255, 0.4); }
+.aisc-viewer-thumb[data-current] { border-color: var(--aisc-accent); }
+
+/* ── Quantity ────────────────────────────────────────────────────────── */
+.aisc-pcard-buy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: 2px;
+}
+.aisc-pcard-buy .aisc-pcard-add { inline-size: auto; flex: 1 1 auto; }
+.aisc-qty {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 3px;
+  border: 1px solid var(--aisc-border);
+  border-radius: 999px;
+  background: var(--aisc-ink);
+}
+.aisc-qty-btn {
+  inline-size: 32px;
+  block-size: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.aisc-qty-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.10); }
+.aisc-qty-btn:disabled { opacity: 0.35; cursor: default; }
+.aisc-qty-value {
+  min-inline-size: 22px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Availability, not a marketing line — muted until it is bad news. */
+.aisc-pcard-stock { font-size: 12.5px; color: var(--aisc-text-muted); }
+.aisc-pcard-stock:empty { display: none; }
+.aisc-pcard-stock[data-tone="out"] { color: var(--aisc-danger); }
+
+/* Each option is its own labelled question, so the gap between groups has to
+   read as larger than the gap between a label and its own chips. */
+.aisc-pcard-sizes { display: flex; flex-direction: column; gap: 14px; }
+.aisc-opt-group { display: flex; flex-direction: column; gap: 8px; }
+.aisc-pcard-sizes:empty { display: none; }
+.aisc-pcard .aisc-opts-label { margin: 0; }
+
+.aisc-pcard-desc {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--aisc-text);
+  white-space: normal;
+}
+.aisc-pcard-desc:empty { display: none; }
+
+/* The chosen size is the one filled in; the rest are outlines. Selection is a
+   state the shopper can see before they commit, not something that happens to
+   them the instant they touch a chip. */
+.aisc-buy-btn--sm {
+  flex: none;
+  max-inline-size: 176px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 7px 20px;
+  font-size: 16px;
+  background: transparent;
+  color: var(--aisc-text);
+  border-color: #666666;
+}
+.aisc-buy-btn--sm:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: var(--aisc-bubble-bot);
+  border-color: var(--aisc-accent);
+}
+.aisc-buy-btn--sm[aria-pressed="true"] {
+  background: var(--aisc-accent);
+  border-color: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  font-weight: 500;
+}
+/* The chosen one stays white under the pointer — only a shade softer — so its
+   dark label never ends up on a dark ground. */
+.aisc-buy-btn--sm[aria-pressed="true"]:hover:not(:disabled) {
+  background: #e4e6e9;
+  border-color: #e4e6e9;
+  color: var(--aisc-accent-text);
+}
+
+.aisc-pcard-add {
+  box-sizing: border-box;
+  inline-size: 100%;
+  /* Full width of its column, but a button is a target, not a banner: past
+     this it stops reading as something to press and starts looking like a
+     divider. Only bites once the panel has been dragged wide. */
+  max-inline-size: 300px;
+  height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--aisc-accent);
+  border-radius: 999px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The plus is a pseudo-element, not a child, so the label can go on being set
+   with textContent — "Sold out", "Select a size", "…" while the add runs. */
+.aisc-pcard-add::before {
+  content: "";
+  flex: none;
+  inline-size: 18px;
+  block-size: 18px;
+  margin-inline-end: 8px;
+  /* The same thin plus as the in-cart roll, drawn as a mask so it takes the
+     button's text colour. */
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 2.25c.41 0 .75.34.75.75v6.25H17a.75.75 0 0 1 0 1.5h-6.25V17a.75.75 0 0 1-1.5 0v-6.25H3a.75.75 0 0 1 0-1.5h6.25V3c0-.41.34-.75.75-.75Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 2.25c.41 0 .75.34.75.75v6.25H17a.75.75 0 0 1 0 1.5h-6.25V17a.75.75 0 0 1-1.5 0v-6.25H3a.75.75 0 0 1 0-1.5h6.25V3c0-.41.34-.75.75-.75Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+/* Nothing is being added in those states, so nothing should offer to. */
+.aisc-pcard-add:disabled::before,
+.aisc-pcard-add--added::before { content: none; }
+
+/* Adding. The same spinner, in the same place, on every button that puts
+   something in the cart or heads to checkout — never a stray + and "…". */
+@keyframes aisc-spin { to { transform: rotate(360deg); } }
+ai-support-chat .aisc-pcard-add[data-busy],
+ai-support-chat .aisc-buy-btn[data-busy],
+ai-support-chat .aisc-outfit-buy[data-busy],
+ai-support-chat .aisc-rec-add[data-busy],
+ai-support-chat .aisc-recs-checkout[data-busy],
+ai-support-chat .aisc-quick-btn[data-busy] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  cursor: progress;
+}
+ai-support-chat .aisc-pcard-add[data-busy] { display: flex; }
+ai-support-chat .aisc-pcard-add[data-busy]::before,
+ai-support-chat .aisc-buy-btn[data-busy]::before,
+ai-support-chat .aisc-outfit-buy[data-busy]::before,
+ai-support-chat .aisc-rec-add[data-busy]::before,
+ai-support-chat .aisc-recs-checkout[data-busy]::before,
+ai-support-chat .aisc-quick-btn[data-busy]::before {
+  content: "";
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 16px;
+  block-size: 16px;
+  margin-inline-end: 8px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  background: none;
+  -webkit-mask: none;
+  mask: none;
+  animation: aisc-spin 0.7s linear infinite;
+}
+ai-support-chat .aisc-rec-add[data-busy]::before { margin-inline-end: 0; }
+@media (prefers-reduced-motion: reduce) {
+  ai-support-chat [data-busy]::before { animation-duration: 1.6s; }
+}
+
+/* Already in the cart. The button reports that at rest and rolls to "Add to
+   cart" under the pointer — both the icon and the words slide up together, so
+   the state and the action occupy the same button without either being hidden
+   behind a mode. */
+.aisc-pcard-add--incart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+.aisc-pcard-add--incart::before { content: none; }
+
+.aisc-roll {
+  overflow: hidden;
+  block-size: 1.3em;
+  line-height: 1.3em;
+}
+.aisc-roll-cell {
+  display: flex;
+  block-size: 1.3em;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: transform 0.3s ease-in-out;
+}
+/* The icons stack in a column and the column slides. */
+.aisc-roll--icon { display: inline-flex; flex-direction: column; flex: none; }
+.aisc-roll--icon svg { inline-size: 1.15em; block-size: 1.15em; display: block; }
+/* The two labels share one grid cell, so the button is as wide as the longer
+   of them and neither reflows as they pass. */
+.aisc-roll--label { display: inline-grid; }
+.aisc-roll--label .aisc-roll-cell { grid-area: 1 / 1; }
+.aisc-roll--label .aisc-roll-cell:last-child { transform: translateY(100%); }
+
+.aisc-pcard-add--incart:hover .aisc-roll--icon .aisc-roll-cell,
+.aisc-pcard-add--incart:focus-visible .aisc-roll--icon .aisc-roll-cell,
+.aisc-pcard-add--incart:hover .aisc-roll--label .aisc-roll-cell:first-child,
+.aisc-pcard-add--incart:focus-visible .aisc-roll--label .aisc-roll-cell:first-child {
+  transform: translateY(-100%);
+}
+.aisc-pcard-add--incart:hover .aisc-roll--label .aisc-roll-cell:last-child,
+.aisc-pcard-add--incart:focus-visible .aisc-roll--label .aisc-roll-cell:last-child {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-roll-cell { transition: none; }
+}
+.aisc-pcard-add:hover:not(:disabled) { background: #e4e6e9; border-color: #e4e6e9; }
+.aisc-pcard-add:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+.aisc-pcard-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.aisc-pcard-add--added {
+  background: transparent;
+  border-color: var(--aisc-ok);
+  color: var(--aisc-ok);
+}
+
+.aisc-pcard .aisc-added,
+.aisc-pcard .aisc-buy-err { font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-pcard-add { transition: none; }
+}
+
+/* A phone panel cannot give 136px to the photograph and still leave room for a
+   title and a button beside it. */
+@media (max-width: 400px) {
+  .aisc-pcard-top { grid-template-columns: 100px minmax(0, 1fr); gap: 11px; }
+  .aisc-pcard-img { inline-size: 100px; block-size: 100px; border-radius: 24px; }
+}
+
+/* ── Outfit ──────────────────────────────────────────────────────────── */
+/* A look is a numbered list of pieces, laid out exactly like any other list of
+   products — one layout to learn, not two. What makes it a look rather than a
+   shortlist is what sits under it: a running total and one button that takes
+   the whole thing. So the block itself has no frame; the cards are the frame. */
+.aisc-outfit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-block-start: -2px;
+  margin-inline-start: 0;
+  max-inline-size: 100%;
+}
+.aisc-outfit-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.aisc-outfit-head .aisc-opts-label { margin: 0; font-size: 17px; }
+.aisc-outfit-count { font-size: 13px; color: var(--aisc-text-muted); }
+
+/* The exact size and colour the agent chose — the reason this is a look and
+   not a shortlist, so it must not be mistaken for a subtitle. */
+.aisc-outfit-option { font-size: 13px; color: var(--aisc-text-muted); margin-block-start: -3px; }
+
+.aisc-outfit-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--aisc-border);
+  font-size: 14px;
+}
+.aisc-outfit-total b { font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.aisc-outfit-budget { font-size: 12px; }
+.aisc-outfit-budget[data-tone="ok"]   { color: var(--aisc-ok); }
+.aisc-outfit-budget[data-tone="over"] { color: var(--aisc-warn); }
+
+.aisc-pcard-add--added { background: transparent; border-color: var(--aisc-ok); color: var(--aisc-ok); }
+
+/* Two actions, weighted. Adding to the bag keeps the shopper in the
+   conversation and is the one the upsell brief leads with, so it takes the
+   solid fill; Buy now leaves the site, so it stays an outline. */
+.aisc-outfit-actions { display: flex; flex-direction: column; gap: 6px; }
+.aisc-outfit-buy {
+  inline-size: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--aisc-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.aisc-outfit-buy:hover { background: var(--aisc-bubble-bot); }
+.aisc-outfit-buy:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-outfit-buy { transition: none; }
+}
+
+/* ── Detail card: preview slider ─────────────────────────────────────── */
+/* A single product answer, laid out like a shoppable preview: a strip of
+   photographs with two and a bit showing (the peek says "there is more"),
+   round arrows riding the edges, then name, price, the assistant's note and
+   the buy row. */
+.aisc-pcard--detail {
+  gap: 16px;
+  padding: 12px;
+  border-radius: 20px;
+}
+.aisc-pcard--detail .aisc-pcard-title,
+.aisc-pcard--detail .aisc-pcard-price,
+.aisc-pcard--detail .aisc-pcard-stock,
+.aisc-pcard--detail .aisc-pcard-sizes { padding-inline: 0; }
+.aisc-pcard--detail .aisc-pcard-title {
+  margin-block-start: 4px;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration-thickness: 1.5px;
+}
+.aisc-pcard--detail .aisc-pcard-price {
+  margin-block-start: -6px;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.aisc-pcard--detail .aisc-gallery-track {
+  gap: 3px;
+  border-radius: 14px;
+  background: transparent;
+}
+.aisc-pcard--detail .aisc-shot {
+  inline-size: 40%;
+  block-size: 136px;
+  background: #ffffff;
+}
+.aisc-pcard--detail .aisc-shot:only-child { inline-size: 100%; }
+.aisc-pcard--detail .aisc-shot:first-child:nth-last-child(2),
+.aisc-pcard--detail .aisc-shot:last-child:nth-child(2) { inline-size: calc(50% - 1.5px); }
+.aisc-pcard--detail .aisc-shot img { object-fit: contain; }
+.aisc-pcard--detail .aisc-shot:only-child img { object-fit: contain; }
+
+.aisc-pcard--detail .aisc-gallery-arrow {
+  inline-size: 40px;
+  block-size: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(36, 36, 36, 0.78);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.aisc-pcard--detail .aisc-gallery-arrow:hover { background: rgba(36, 36, 36, 0.95); }
+.aisc-pcard--detail .aisc-gallery-arrow--next { inset-inline-end: -8px; }
+.aisc-pcard--detail .aisc-gallery-arrow--prev { inset-inline-start: -8px; }
+
+.aisc-pcard--detail .aisc-pcard-note {
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #eef4fd;
+  color: #1b2735;
+}
+.aisc-pcard--detail .aisc-pcard-note .aisc-pcard-desc { font-size: 16px; line-height: 1.5; }
+.aisc-pcard--detail .aisc-pcard-note-mark { color: #2563eb; margin-block-start: 3px; }
+.aisc-pcard--detail .aisc-pcard-note-mark svg { inline-size: 18px; block-size: 18px; }
+
+.aisc-pcard--detail .aisc-pcard-buy { gap: 14px; margin-block-start: 8px; }
+.aisc-pcard--detail .aisc-qty {
+  block-size: 40px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border-radius: 12px;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: transparent;
+}
+.aisc-pcard--detail .aisc-qty-btn { inline-size: 32px; block-size: 32px; font-size: 18px; border-radius: 50%; }
+.aisc-pcard--detail .aisc-qty-value { min-inline-size: 28px; font-size: 16px; font-weight: 600; }
+
+/* ── Typeface ────────────────────────────────────────────────────────── */
+/* Open Sans throughout the panel, loaded by the snippet. Controls are named
+   too, since buttons and fields do not inherit the font on their own. */
+ai-support-chat,
+ai-support-chat button,
+ai-support-chat input,
+ai-support-chat textarea,
+ai-support-chat select {
+  font-family: "Open Sans", sans-serif;
+}
+
+/* ── List rows ───────────────────────────────────────────────────────── */
+/* Photograph on the left, name, price and Add to cart on the right, what the
+   assistant said about it underneath. */
+.aisc-pcard--list {
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+}
+.aisc-pcard--list .aisc-pcard-top { grid-template-columns: 130px minmax(0, 1fr); gap: 20px; }
+.aisc-pcard--list .aisc-pcard-img {
+  inline-size: 100%;
+  block-size: 130px;
+  border-radius: 24px;
+  background: #f4f4f4;
+}
+.aisc-pcard--list .aisc-pcard-img img { padding: 0; box-sizing: border-box; mix-blend-mode: multiply; object-fit: contain; }
+.aisc-pcard--list .aisc-pcard-main { gap: 6px; }
+/* One line of name, cut with an ellipsis, so every row lines up. */
+.aisc-pcard--list .aisc-pcard-title {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aisc-pcard--list .aisc-pcard-price { font-size: 17px; font-weight: 500; }
+.aisc-pcard--list .aisc-pcard-desc { font-size: 16px; display: none; }
+
+/* Sale: the new price in green, the old one struck, then how much is off. */
+.aisc-pcard-price:has(.aisc-pcard-sale) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+.aisc-pcard-sale { color: #3ecf7f; font-weight: 700; }
+.aisc-pcard-was { color: var(--aisc-text-muted); font-weight: 400; }
+.aisc-pcard-off { font-weight: 500; }
+.aisc-pcard-badge {
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #000000;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* On the recommendation shelf: the prices share a narrow line, and the tag
+   sits on the photograph opposite the + button. */
+.aisc-rec-price:has(.aisc-pcard-sale) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+}
+.aisc-rec-badge {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  z-index: 1;
+  font-size: 12px;
+}
+
+/* ── Referral / discount code ─────────────────────────────────────────── */
+.aisc-code { display: flex; flex-direction: column; gap: 8px; }
+.aisc-code [hidden] { display: none !important; }
+.aisc-code-toggle {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.aisc-code-toggle:hover { opacity: 1; }
+.aisc-code-form { display: flex; gap: 8px; }
+.aisc-code-input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: 40px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid #666666;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 15px;
+  text-transform: uppercase;
+}
+.aisc-code-input::placeholder { text-transform: none; color: var(--aisc-text-muted); }
+.aisc-code-input:focus { outline: none; border-color: var(--aisc-text); }
+.aisc-code-apply {
+  flex: none;
+  block-size: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--aisc-accent);
+  border-radius: 999px;
+  background: var(--aisc-accent);
+  color: var(--aisc-accent-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aisc-code-apply:disabled { opacity: 0.6; cursor: default; }
+.aisc-code-status { font-size: 14px; line-height: 1.4; color: var(--aisc-text-muted); }
+.aisc-code-status:empty { display: none; }
+.aisc-code-status[data-tone="ok"] { color: #3ecf7f; }
+.aisc-code-status[data-tone="bad"] { color: var(--aisc-danger); }
+
+/* ── Checkout under the recommendation shelf ─────────────────────────── */
+.aisc-recs-checkout {
+  align-self: flex-start;
+  block-size: 40px;
+  box-sizing: border-box;
+  padding: 7px 20px;
+  border: 1px solid #666666;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--aisc-text);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.aisc-recs-checkout:hover:not(:disabled) { background: var(--aisc-bubble-bot); }
+.aisc-recs-checkout:disabled { cursor: default; opacity: 0.7; }
+.aisc-recs-checkout:focus-visible { outline: 2px solid var(--aisc-accent); outline-offset: 2px; }
+
+@media (max-width: 420px) {
+  .aisc-pcard--list .aisc-pcard-top { grid-template-columns: 120px minmax(0, 1fr); gap: 14px; }
+  .aisc-pcard--list .aisc-pcard-img { inline-size: 120px; block-size: 120px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-pcard { animation: none; }
+}
+
+/* ── Comparison ───────────────────────────────────────────────────────────
+   Two pieces side by side rather than stacked: a comparison is read across,
+   and a column forces the shopper to hold one card in memory while they
+   scroll to the other. The row scrolls horizontally when a third arrives or
+   the panel is narrow, with the cards snapping so one is never half shown. */
+.aisc-pcards--compare {
+  /* Stays a column: the heading sits above the row, not inside it. */
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The scroller, plus the arrows and fades laid over its two edges. */
+.aisc-cmp-frame {
+  position: relative;
+  /* Room for the cards' shadow and focus ring, taken back off the sides so
+     the row still lines up with the messages above it. */
+  margin-inline: -2px;
+  padding-inline: 2px;
+}
+
+.aisc-cmp-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-block: 4px 8px;
+  margin-block: -4px -8px;
+  /* The arrows are the affordance here, so the bar itself is hidden — two of
+     them on one small row is noise. */
+  scrollbar-width: none;
+}
+
+.aisc-cmp-row::-webkit-scrollbar { display: none; }
+
+/* The row visibly continues under the arrow rather than stopping at a hard
+   edge. Fades to the conversation's own ground, so it follows the theme
+   between light and dark without being told. */
+.aisc-cmp-frame::before,
+.aisc-cmp-frame::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inline-size: 56px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 55;
+}
+
+.aisc-cmp-frame::before {
+  inset-inline-start: 0;
+  background: linear-gradient(to right, var(--aisc-surface-alt) 40%, transparent);
+}
+
+.aisc-cmp-frame::after {
+  inset-inline-end: 0;
+  background: linear-gradient(to left, var(--aisc-surface-alt) 40%, transparent);
+}
+
+.aisc-cmp-frame--prev::before,
+.aisc-cmp-frame--next::after { opacity: 1; }
+
+/* Same disc as the recommendation shelf's arrows — one arrow in the panel,
+   not two designs. */
+.aisc-cmp-arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  z-index: 60;
+  inline-size: 34px;
+  block-size: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 30, 33, 0.72);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s ease;
+}
+
+.aisc-cmp-arrow:hover { background: rgba(28, 30, 33, 0.92); }
+.aisc-cmp-arrow[hidden] { display: none; }
+.aisc-cmp-arrow svg { inline-size: 18px; block-size: 18px; }
+.aisc-cmp-arrow--next { inset-inline-end: 6px; }
+.aisc-cmp-arrow--prev { inset-inline-start: 6px; transform: translateY(-50%) rotate(180deg); }
+
+.aisc-cmp-card {
+  /* A press anywhere on it asks about the piece, as a list row does. */
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  /* Never narrower than this: below it the specs wrap onto three lines each
+     and the comparison stops being readable across. Two fit a 400px panel;
+     a third scrolls. */
+  flex: 1 0 clamp(150px, 46%, 200px);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #666666;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--aisc-text);
+  animation: aisc-in 0.24s ease both;
+}
+
+.aisc-cmp-card:hover { border-color: rgba(127, 127, 127, 0.55); }
+.aisc-cmp-card:focus-within { border-color: rgba(127, 127, 127, 0.55); }
+
+.aisc-cmp-media {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--aisc-surface-alt);
+}
+
+.aisc-cmp-img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.aisc-cmp-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  line-height: 1.3;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  /* Two lines, because a kept-whole product name is most of what tells the
+     two cards apart — one line would cut "…in Blue" off both of them. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.aisc-cmp-price { font-weight: 700; font-size: 0.86rem; }
+
+.aisc-cmp-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-block-start: 8px;
+  border-block-start: 1px solid var(--aisc-border);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* Label and value on one line — "• Sizes: 1M - 2Y" reads as a fact, where a
+   label stacked over its value would double the height of every row and the
+   card is already sharing the panel with another one. */
+.aisc-cmp-spec {
+  margin: 0;
+  font-weight: 600;
+  text-indent: -0.7em;
+  padding-inline-start: 0.7em;   /* wrapped lines clear the bullet */
+}
+
+.aisc-cmp-spec::before { content: '• '; color: var(--aisc-text-muted); }
+.aisc-cmp-spec-k { color: var(--aisc-text-muted); font-weight: 400; }
+
+.aisc-cmp-good {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+  border-block-start: 1px solid var(--aisc-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.aisc-cmp-good li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.aisc-cmp-good li::before {
+  content: '✓';
+  color: var(--aisc-ok);
+  font-weight: 700;
+  flex: 0 0 auto;
+  line-height: 1.35;
+}
+
+/* Pinned to the bottom so the buttons align across cards of unequal height. */
+/* Pinned to the bottom so the buttons line up across cards of unequal height,
+   and full width so the card's own Add to cart reads as the card's, not as a
+   chip floating in it. The button itself is .aisc-pcard-add — the same one
+   every other card uses — so only its placement is set here. */
+.aisc-cmp-foot { margin-block-start: auto; padding-block-start: 8px; }
+.aisc-cmp-foot .aisc-pcard-add { inline-size: 100%; max-inline-size: none; }
+.aisc-cmp-foot .aisc-buy-link { display: block; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-cmp-card { animation: none; }
+}
+
+/* ── Resize ───────────────────────────────────────────────────────────────
+   The panel is pinned to the bottom-right, so it grows up and to the left and
+   the grips sit on those edges. Wide enough to hit without hunting (8px, the
+   usual window-edge target), and invisible until the pointer is near — a chat
+   window should not look like a resizable box until someone reaches for it. */
+.aisc-resize {
+  position: absolute;
+  z-index: 40;
+  touch-action: none;              /* the drag is ours, not the page's */
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.aisc-resize--edge-top {
+  inset-block-start: 0;
+  inset-inline: 14px 14px;
+  block-size: 8px;
+  cursor: ns-resize;
+}
+
+.aisc-resize--edge-left {
+  inset-inline-start: 0;
+  inset-block: 14px 14px;
+  inline-size: 8px;
+  cursor: ew-resize;
+}
+
+.aisc-resize--corner {
+  /* Inset from the corner rather than sitting in it: the panel's radius curves
+     away there, so a grip at 0,0 half-overlaps the rounding. */
+  inset-block-start: 5px;
+  inset-inline-start: 5px;
+  inline-size: 18px;
+  block-size: 18px;
+  cursor: nwse-resize;
+  border-start-start-radius: var(--aisc-radius);
+}
+
+/* A diagonal arrow pointing the way the panel grows — shown only on approach,
+   so the resting panel does not advertise itself as a resizable box. */
+/* Always on show: a resize that has to be discovered is a resize most people
+   never find. Muted at rest so it reads as an affordance rather than a
+   control, and full strength under the pointer. */
+.aisc-resize--corner svg {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  inline-size: 12px;
+  block-size: 12px;
+  color: var(--aisc-text-muted);
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+  pointer-events: none;      /* the grip takes the drag, not the glyph */
+}
+
+.aisc-panel:hover .aisc-resize--corner svg { opacity: 0.75; }
+.aisc-resize--corner:hover svg { opacity: 1; }
+
+.aisc-resize:focus-visible {
+  outline: 2px solid var(--aisc-info);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.aisc-resize:focus-visible svg { opacity: 1; }
+
+/* While dragging: no easing on the panel (it has to track the pointer, and
+   easing reads as lag), and nothing on the page selects under the cursor. */
+ai-support-chat[data-resizing] .aisc-panel { transition: none; }
+ai-support-chat[data-resizing] { user-select: none; }
+ai-support-chat[data-resizing] .aisc-resize--corner svg { opacity: 1; }
+
+/* A phone panel is the whole screen — there is nothing to resize, and an
+   invisible 8px strip along the edge would only eat taps meant for the chat. */
+/* The corner and left grips go; the top one becomes the sheet's drag handle
+   and is styled in the phone block above. */
+@media (max-width: 480px) {
+  .aisc-resize--corner,
+  .aisc-resize--edge-left { display: none; }
+}
+
+/* Docked to the side the height is the window's, so only width can move. */
+ai-support-chat[data-dock="side"] .aisc-resize--edge-top,
+ai-support-chat[data-dock="side"] .aisc-resize--corner { display: none; }
+
+/* ── Cart actions ─────────────────────────────────────────────────────────
+   The receipt for something the assistant put in the cart on the shopper's
+   say-so. Quiet while it works, a tick when it is done, and the store's own
+   reason in plain words when Shopify refuses (sold out, a quantity rule). */
+.aisc-action-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-block-start: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--aisc-border);
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--aisc-text-muted);
+  animation: aisc-in 0.2s ease both;
+}
+.aisc-action-note svg { inline-size: 14px; block-size: 14px; flex: none; }
+.aisc-action-note[data-tone="ok"] { color: var(--aisc-ok); border-color: currentColor; }
+.aisc-action-note[data-tone="error"] { color: var(--aisc-danger); border-color: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aisc-action-note { animation: none; }
+}
+
+/* ── What changed in the bag ──────────────────────────────────────────────
+   After an edit the same product can show twice, one size out and one in.
+   The tag says which is which; the removed card is dimmed so the eye lands on
+   the one that is actually in the bag now. */
+.aisc-pcard-change {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid currentColor;
+}
+.aisc-pcard[data-change="added"] .aisc-pcard-change { color: var(--aisc-ok); }
+.aisc-pcard[data-change="removed"] .aisc-pcard-change { color: var(--aisc-text-muted); }
+.aisc-pcard[data-change="removed"] { opacity: 0.6; }
+.aisc-pcard[data-change="removed"]:hover { opacity: 0.85; }

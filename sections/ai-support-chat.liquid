@@ -1,0 +1,339 @@
+{% doc %}
+  AI Support Chat section.
+
+  Add this from the theme editor. To show the widget on every page, add it to
+  the Footer section group — the popup is position:fixed, so it floats over the
+  whole page regardless of where it sits in the DOM.
+{% enddoc %}
+
+{% render 'ai-support-chat',
+  endpoint: section.settings.endpoint,
+  heading: section.settings.heading,
+  subheading: section.settings.subheading,
+  launcher_label: section.settings.launcher_label,
+  launcher_label_collection: section.settings.launcher_label_collection,
+  launcher_label_product: section.settings.launcher_label_product,
+  launcher_position: section.settings.launcher_position,
+  welcome_heading: section.settings.welcome_heading,
+  placeholder: section.settings.placeholder,
+  categories: section.settings.categories,
+  collections_endpoint: section.settings.collections_endpoint,
+  feedback_endpoint: section.settings.feedback_endpoint,
+  category_prompt: section.settings.category_prompt,
+  product_preview: section.settings.product_preview,
+  recs_heading: section.settings.recs_heading,
+  thinking: section.settings.thinking,
+  terms_url: section.settings.terms_url,
+  privacy_url: section.settings.privacy_url,
+  launcher_center_templates: section.settings.launcher_center_templates,
+  launcher_right_templates: section.settings.launcher_right_templates,
+  greeting: section.settings.greeting,
+  chips: section.settings.chips,
+  logo: section.settings.logo,
+  cart_action: section.settings.cart_action,
+  outfit_heading: section.settings.outfit_heading,
+  outfit_cta: section.settings.outfit_cta,
+  discount_codes: section.settings.discount_codes,
+  send_cart: section.settings.send_cart,
+  send_customer: section.settings.send_customer,
+  notice: section.settings.notice,
+  notice_link_text: section.settings.notice_link_text,
+  notice_link_url: section.settings.notice_link_url,
+  accent: section.settings.accent,
+  accent_text: section.settings.accent_text
+%}
+
+{% schema %}
+{
+  "name": "AI Support Chat",
+  "tag": "div",
+  "class": "ai-support-chat-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Connection"
+    },
+    {
+      "type": "text",
+      "id": "endpoint",
+      "label": "Support chat endpoint",
+      "default": "https://agentic-ai-backend-production-0bd1.up.railway.app/api/v1/support/chat",
+      "info": "The streaming support route on the AI backend. The store's domain must be listed in the backend's CORS_ORIGINS, or the browser will block the request."
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "text",
+      "id": "launcher_label",
+      "label": "Button label",
+      "default": "Shop with AI",
+      "info": "Revealed when the shopper hovers the floating button. The two below override it on those pages."
+    },
+    {
+      "type": "text",
+      "id": "launcher_label_collection",
+      "label": "Button label on collections",
+      "default": "Browse this collection?",
+      "info": "Leave empty to use the label above."
+    },
+    {
+      "type": "text",
+      "id": "launcher_label_product",
+      "label": "Button label on products",
+      "placeholder": "Ask about this piece?",
+      "info": "Leave empty to use the label above."
+    },
+    {
+      "type": "select",
+      "id": "launcher_position",
+      "label": "Button position",
+      "options": [
+        {
+          "value": "right",
+          "label": "Bottom right"
+        },
+        {
+          "value": "center",
+          "label": "Bottom centre"
+        }
+      ],
+      "default": "right",
+      "info": "Where the floating button sits by default. Individual pages can differ using the two lists below. Shoppers can drag it up and down either way."
+    },
+    {
+      "type": "text",
+      "id": "launcher_center_templates",
+      "label": "Centre it on these templates",
+      "placeholder": "index",
+      "info": "Comma-separated template names — \"index\" for the home page, \"page\" for every page, \"page.trade-program\" for one. These override the default above."
+    },
+    {
+      "type": "text",
+      "id": "launcher_right_templates",
+      "label": "Corner it on these templates",
+      "placeholder": "page, product",
+      "info": "The same, the other way. A template in both lists keeps the corner."
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Title",
+      "default": "Pepa London"
+    },
+    {
+      "type": "text",
+      "id": "subheading",
+      "label": "Status label",
+      "default": "Online",
+      "info": "Shown in the header once the assistant has answered."
+    },
+    {
+      "type": "text",
+      "id": "welcome_heading",
+      "label": "Welcome heading",
+      "default": "Welcome to Pepa London 👋",
+      "info": "The large line at the top of the conversation. Use {name} to greet signed-in shoppers."
+    },
+    {
+      "type": "text",
+      "id": "placeholder",
+      "label": "Composer placeholder",
+      "default": "Message Pepa London"
+    },
+    {
+      "type": "textarea",
+      "id": "greeting",
+      "label": "Greeting message",
+      "info": "Use {name} to greet signed-in shoppers by first name. It disappears cleanly for guests.",
+      "default": "Hi {name}! I can help with orders, shipping, returns and finding the right pieces. What do you need?"
+    },
+    {
+      "type": "text",
+      "id": "thinking",
+      "label": "Waiting message",
+      "default": "Thinking this through, just a moment",
+      "info": "Shown with a counting ellipsis while the assistant is working on a reply."
+    },
+    {
+      "type": "textarea",
+      "id": "chips",
+      "label": "Quick replies",
+      "info": "Leave this empty for no quick replies. Separate each one with a pipe character: |",
+      "default": "Where is my order?|Delivery and returns|Help me find a size"
+    },
+    {
+      "type": "header",
+      "content": "Complete the look"
+    },
+    {
+      "type": "text",
+      "id": "outfit_heading",
+      "label": "Look title",
+      "default": "Complete the Look"
+    },
+    {
+      "type": "text",
+      "id": "outfit_cta",
+      "label": "Add-the-look button",
+      "default": "Add Complete Look to Bag",
+      "info": "Worth A/B testing, e.g. \"Complete the Look & Save £20\"."
+    },
+    {
+      "type": "header",
+      "content": "Cart"
+    },
+    {
+      "type": "checkbox",
+      "id": "discount_codes",
+      "label": "Show referral / discount code field",
+      "default": false,
+      "info": "Shown on product cards. The code is added to the cart and carried to checkout."
+    },
+    {
+      "type": "header",
+      "content": "Collection shelf"
+    },
+    {
+      "type": "collection_list",
+      "id": "categories",
+      "label": "Collections",
+      "limit": 8,
+      "info": "Shown as cards under the welcome. Tapping one asks the assistant about it. Leave empty and the assistant lists every collection your store publishes."
+    },
+    {
+      "type": "text",
+      "id": "collections_endpoint",
+      "label": "Collections route",
+      "info": "Only needed if it is not the chat endpoint with /chat swapped for /collections."
+    },
+    {
+      "type": "text",
+      "id": "feedback_endpoint",
+      "label": "Rating route",
+      "info": "Where a thumbs up or down is sent. Leave empty and the rating is only dispatched as an aisc:rating event for your own analytics to pick up."
+    },
+    {
+      "type": "text",
+      "id": "category_prompt",
+      "label": "What tapping a card asks",
+      "default": "Tell me more about {title}",
+      "info": "Used by both the collection cards and the product rows. {title} is replaced with the collection or product name."
+    },
+    {
+      "type": "range",
+      "id": "product_preview",
+      "label": "Products before folding",
+      "min": 2,
+      "max": 8,
+      "step": 1,
+      "default": 3,
+      "info": "A longer list folds behind a \"Show N more\" row."
+    },
+    {
+      "type": "text",
+      "id": "recs_heading",
+      "label": "Recommendations heading",
+      "default": "You might also like",
+      "info": "Shown above the complementary products offered after an add to cart."
+    },
+    {
+      "type": "header",
+      "content": "Policies"
+    },
+    {
+      "type": "url",
+      "id": "terms_url",
+      "label": "Terms of Use link"
+    },
+    {
+      "type": "url",
+      "id": "privacy_url",
+      "label": "Privacy link",
+      "info": "Both appear in the chat's options menu, beside the note about AI."
+    },
+    {
+      "type": "select",
+      "id": "cart_action",
+      "label": "\"View cart\" opens",
+      "default": "drawer",
+      "info": "Shown after something is added to the cart from the chat.",
+      "options": [
+        {
+          "value": "drawer",
+          "label": "The cart drawer"
+        },
+        {
+          "value": "page",
+          "label": "The cart page"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "id": "send_cart",
+      "label": "Let the assistant see the cart",
+      "default": true,
+      "info": "Sends what is in the cart with each message, so the assistant can answer questions about it. Requires backend support."
+    },
+    {
+      "type": "checkbox",
+      "id": "send_customer",
+      "label": "Send signed-in shopper details",
+      "default": true,
+      "info": "Sends the customer id, email and phone of a logged-in shopper. Guests send nothing. The backend must treat these as unverified."
+    },
+    {
+      "type": "header",
+      "content": "Privacy notice"
+    },
+    {
+      "type": "textarea",
+      "id": "notice",
+      "label": "Notice text",
+      "info": "Small line above the conversation. Leave empty to hide it.",
+      "default": "This chat is answered by an AI assistant and is subject to the terms of our"
+    },
+    {
+      "type": "text",
+      "id": "notice_link_text",
+      "label": "Notice link label",
+      "default": "Privacy Notice"
+    },
+    {
+      "type": "url",
+      "id": "notice_link_url",
+      "label": "Notice link"
+    },
+    {
+      "type": "header",
+      "content": "Appearance"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Header logo",
+      "info": "Shown in the round avatar. Falls back to the first letter of the title."
+    },
+    {
+      "type": "color",
+      "id": "accent",
+      "label": "Accent colour",
+      "default": "#ffffff",
+      "info": "Primary buttons and links inside the dark panel. White is the reference look."
+    },
+    {
+      "type": "color",
+      "id": "accent_text",
+      "label": "Text on accent",
+      "default": "#16181b"
+    }
+  ],
+  "presets": [
+    {
+      "name": "AI Support Chat"
+    }
+  ]
+}
+{% endschema %}

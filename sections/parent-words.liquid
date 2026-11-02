@@ -1,0 +1,237 @@
+{% comment %}
+  Parent words — three reviews, set as pull quotes rather than cards.
+
+  Review widgets tend to look like software. These are set in the heading face
+  at reading size with a sand quote mark behind them, because a sentence a
+  grandmother wrote about a christening gown deserves to look like writing.
+
+  Kept to three. A wall of testimonials reads as marketing; three specific ones
+  read as true.
+{% endcomment %}
+
+{%- liquid
+  assign quotes = ''
+  for i in (1..3)
+    assign key = 'quote_' | append: i
+    if section.settings[key] != blank
+      assign quotes = quotes | append: i | append: ','
+    endif
+  endfor
+  assign quotes = quotes | split: ','
+-%}
+
+{%- if quotes.size > 0 -%}
+  <div
+    class="pl-words"
+    style="
+      --pl-sand: {{ section.settings.accent_color }};
+      --pl-ink: {{ section.settings.text_color }};
+      --pl-bg: {{ section.settings.background_color }};
+      --pl-pad-start: {{ section.settings.padding_block_start }}px;
+      --pl-pad-end: {{ section.settings.padding_block_end }}px;
+    "
+  >
+    <div class="pl-words__inner">
+      {%- if section.settings.heading != blank -%}
+        <h2 class="pl-words__heading">{{ section.settings.heading | escape }}</h2>
+      {%- endif -%}
+
+      <div class="pl-words__grid" style="--pl-count: {{ quotes.size }};">
+        {%- for i in quotes -%}
+          {%- liquid
+            assign quote_key = 'quote_' | append: i
+            assign name_key = 'name_' | append: i
+            assign meta_key = 'meta_' | append: i
+            assign stars_key = 'stars_' | append: i
+            assign stars = section.settings[stars_key] | plus: 0
+          -%}
+          <figure class="pl-words__item">
+            {%- if stars > 0 -%}
+              <div class="pl-words__stars" role="img" aria-label="{{ stars }} out of 5">
+                {%- for s in (1..stars) -%}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 3.6 2.5 5.2 5.7.8-4.1 4 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/></svg>
+                {%- endfor -%}
+              </div>
+            {%- endif -%}
+
+            <blockquote class="pl-words__quote">
+              {{ section.settings[quote_key] | escape }}
+            </blockquote>
+
+            <figcaption class="pl-words__by">
+              <span class="pl-words__name">{{ section.settings[name_key] | escape }}</span>
+              {%- if section.settings[meta_key] != blank -%}
+                <span class="pl-words__meta">{{ section.settings[meta_key] | escape }}</span>
+              {%- endif -%}
+            </figcaption>
+          </figure>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pl-words {
+    background: var(--pl-bg);
+    color: var(--pl-ink);
+    padding-block: var(--pl-pad-start) var(--pl-pad-end);
+  }
+
+  .pl-words__inner {
+    width: 100%;
+    max-width: var(--page-width, 1400px);
+    margin-inline: auto;
+    padding-inline: var(--page-margin, 20px);
+  }
+
+  .pl-words__heading {
+    margin: 0 0 clamp(2rem, 4vw, 3.25rem);
+    text-align: center;
+    font-family: var(--font-h3--family, inherit);
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 58%, transparent);
+  }
+
+  .pl-words__grid {
+    display: grid;
+    grid-template-columns: repeat(var(--pl-count, 3), minmax(0, 1fr));
+    gap: clamp(2rem, 4vw, 3.5rem);
+  }
+
+  .pl-words__item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    margin: 0;
+    padding-block-start: 1.9rem;
+  }
+
+  /* The quote mark sits behind the text as a watermark, not beside it as an
+     ornament — it belongs to the sentence, so it starts where the sentence does. */
+  .pl-words__item::before {
+    content: "\201C";
+    position: absolute;
+    inset-block-start: -0.35em;
+    inset-inline-start: -0.06em;
+    font-family: var(--font-h1--family, Georgia, serif);
+    font-size: 5.5rem;
+    line-height: 1;
+    color: var(--pl-sand);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pl-words__stars {
+    display: flex;
+    gap: 2px;
+    color: var(--pl-ink);
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+  }
+
+  .pl-words__quote {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-family: var(--font-h3--family, inherit);
+    font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    text-wrap: pretty;
+  }
+
+  .pl-words__by {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-block-start: auto;
+    padding-block-start: 0.5rem;
+  }
+
+  .pl-words__name {
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 600;
+  }
+
+  .pl-words__meta {
+    font-size: var(--font-size--xs, 0.8125rem);
+    color: color-mix(in srgb, var(--pl-ink) 55%, transparent);
+  }
+
+  @media screen and (max-width: 899px) {
+    .pl-words__grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(2.25rem, 8vw, 3rem);
+    }
+
+    .pl-words__item + .pl-words__item {
+      border-block-start: 1px solid color-mix(in srgb, var(--pl-ink) 12%, transparent);
+      padding-block-start: 2.6rem;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Parent words",
+  "tag": "section",
+  "class": "pl-words-section",
+  "disabled_on": { "groups": ["header", "footer"] },
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Small heading", "default": "What parents tell us" },
+    { "type": "header", "content": "Quote 1" },
+    {
+      "type": "range", "id": "stars_1", "label": "Stars",
+      "min": 0, "max": 5, "step": 1, "default": 5
+    },
+    {
+      "type": "textarea", "id": "quote_1", "label": "Quote",
+      "default": "The shoes arrived wrapped like a present and my daughter refused to take them off. Three months on they still look new — I have already ordered the next size."
+    },
+    { "type": "text", "id": "name_1", "label": "Name", "default": "Hannah W." },
+    { "type": "text", "id": "meta_1", "label": "Detail", "default": "Mary Jane leather shoes" },
+    { "type": "header", "content": "Quote 2" },
+    {
+      "type": "range", "id": "stars_2", "label": "Stars",
+      "min": 0, "max": 5, "step": 1, "default": 5
+    },
+    {
+      "type": "textarea", "id": "quote_2", "label": "Quote",
+      "default": "I bought the christening gown for my grandson and it is the loveliest thing I have ever handled. The smocking is done by hand — you can tell the moment you see it."
+    },
+    { "type": "text", "id": "name_2", "label": "Name", "default": "Margaret T." },
+    { "type": "text", "id": "meta_2", "label": "Detail", "default": "Hand-smocked christening gown" },
+    { "type": "header", "content": "Quote 3" },
+    {
+      "type": "range", "id": "stars_3", "label": "Stars",
+      "min": 0, "max": 5, "step": 1, "default": 5
+    },
+    {
+      "type": "textarea", "id": "quote_3", "label": "Quote",
+      "default": "I had no idea what size a nearly-three-year-old takes. Asked in the chat, got an answer in seconds, and the whole outfit was in my basket before the kettle boiled."
+    },
+    { "type": "text", "id": "name_3", "label": "Name", "default": "Priya S." },
+    { "type": "text", "id": "meta_3", "label": "Detail", "default": "Summer wedding outfit" },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background_color", "label": "Background", "default": "#ffffff" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2b2926" },
+    { "type": "color", "id": "accent_color", "label": "Quote mark", "default": "#d8c9b6" },
+    { "type": "header", "content": "Padding" },
+    {
+      "type": "range", "id": "padding_block_start", "label": "Top",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 80
+    },
+    {
+      "type": "range", "id": "padding_block_end", "label": "Bottom",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 80
+    }
+  ],
+  "presets": [{ "name": "Parent words", "category": "Storytelling" }]
+}
+{% endschema %}

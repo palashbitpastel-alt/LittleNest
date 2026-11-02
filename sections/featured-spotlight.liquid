@@ -1,0 +1,447 @@
+{% comment %}
+  Featured spotlight — one product, given the room a shop window gives it.
+
+  A grid of eight thumbnails asks a shopper to choose. This asks them to look at
+  one thing. It is the section for the piece that is doing the work this month:
+  the shoe everyone emails about, the christening gown that sells out.
+
+  The photograph runs to the edge of the screen rather than sitting inside the
+  page gutter, because a product this size should not look like a card.
+{% endcomment %}
+
+{%- liquid
+  assign product = section.settings.product
+
+  comment
+    Nothing picked yet — take the first product of the fallback collection so
+    the band renders with real photography from the moment it is added, rather
+    than staying invisible until someone opens the editor.
+  endcomment
+  if product == blank
+    assign source = section.settings.fallback_collection
+    if source.title == blank and source != blank
+      assign source = collections[source]
+    endif
+    assign product = source.products.first
+  endif
+
+  assign primary = product.featured_image
+  assign secondary = product.images[1]
+
+  assign excerpt = section.settings.text
+  if excerpt == blank
+    assign excerpt = product.description | strip_html | truncatewords: 38
+  endif
+-%}
+
+{%- if product != blank -%}
+  {%- if section.settings.show_ask -%}
+    <script src="{{ 'pl-ask-stylist.js' | asset_url }}" defer></script>
+  {%- endif -%}
+
+  <div
+    class="pl-spot{% if section.settings.reverse %} pl-spot--reverse{% endif %}"
+    style="
+      --pl-sand: {{ section.settings.accent_color }};
+      --pl-ink: {{ section.settings.text_color }};
+      --pl-bg: {{ section.settings.background_color }};
+      --pl-pad-start: {{ section.settings.padding_block_start }}px;
+      --pl-pad-end: {{ section.settings.padding_block_end }}px;
+    "
+  >
+    <div class="pl-spot__inner">
+      <div class="pl-spot__media">
+        {%- if primary -%}
+          <img
+            class="pl-spot__img pl-spot__img--main"
+            src="{{ primary | image_url: width: 1200 }}"
+            srcset="
+              {{ primary | image_url: width: 600 }} 600w,
+              {{ primary | image_url: width: 900 }} 900w,
+              {{ primary | image_url: width: 1400 }} 1400w,
+              {{ primary | image_url: width: 1800 }} 1800w
+            "
+            sizes="(min-width: 900px) 52vw, 100vw"
+            alt="{{ primary.alt | default: product.title | escape }}"
+            width="{{ primary.width }}"
+            height="{{ primary.height }}"
+            loading="lazy"
+          >
+        {%- endif -%}
+
+        {%- if section.settings.show_second_image and secondary -%}
+          <img
+            class="pl-spot__img pl-spot__img--inset"
+            src="{{ secondary | image_url: width: 600 }}"
+            srcset="
+              {{ secondary | image_url: width: 300 }} 300w,
+              {{ secondary | image_url: width: 600 }} 600w,
+              {{ secondary | image_url: width: 900 }} 900w
+            "
+            sizes="(min-width: 900px) 16vw, 34vw"
+            alt=""
+            width="{{ secondary.width }}"
+            height="{{ secondary.height }}"
+            loading="lazy"
+          >
+        {%- endif -%}
+      </div>
+
+      <div class="pl-spot__body">
+        {%- if section.settings.eyebrow != blank -%}
+          <p class="pl-spot__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+        {%- endif -%}
+
+        <h2 class="pl-spot__title">
+          {{ section.settings.heading | default: product.title | escape }}
+        </h2>
+
+        <p class="pl-spot__price">
+          {%- if product.compare_at_price > product.price -%}
+            <s class="pl-spot__was">{{ product.compare_at_price | money }}</s>
+          {%- endif -%}
+          <span>{{ product.price | money }}</span>
+        </p>
+
+        {%- if excerpt != blank -%}
+          <p class="pl-spot__text">{{ excerpt }}</p>
+        {%- endif -%}
+
+        {%- liquid
+          assign detail_count = 0
+          for i in (1..3)
+            assign key = 'detail_' | append: i
+            if section.settings[key] != blank
+              assign detail_count = detail_count | plus: 1
+            endif
+          endfor
+        -%}
+        {%- if detail_count > 0 -%}
+          <ul class="pl-spot__details">
+            {%- for i in (1..3) -%}
+              {%- assign key = 'detail_' | append: i -%}
+              {%- if section.settings[key] != blank -%}
+                <li>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                  {{ section.settings[key] | escape }}
+                </li>
+              {%- endif -%}
+            {%- endfor -%}
+          </ul>
+        {%- endif -%}
+
+        <div class="pl-spot__actions">
+          <a class="pl-spot__btn" href="{{ product.url }}">
+            {{ section.settings.button_label | default: 'View this piece' | escape }}
+          </a>
+
+          {%- if section.settings.show_ask -%}
+            <ask-stylist class="pl-spot__ask" data-fallback="{{ product.url }}">
+              <button
+                type="button"
+                class="pl-spot__ghost"
+                data-ask="Tell me about the {{ product.title | escape }} — what sizes are left?"
+              >
+                Ask about it
+              </button>
+            </ask-stylist>
+          {%- endif -%}
+        </div>
+      </div>
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .pl-spot {
+    background: var(--pl-bg);
+    color: var(--pl-ink);
+    padding-block: var(--pl-pad-start) var(--pl-pad-end);
+    overflow: hidden;
+  }
+
+  /* Full width on purpose: the photograph is the point, so it runs to the
+     screen edge and only the copy sits inside a gutter. */
+  .pl-spot__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+    inline-size: 100%;
+  }
+
+  .pl-spot--reverse .pl-spot__inner { direction: rtl; }
+  .pl-spot--reverse .pl-spot__inner > * { direction: ltr; }
+
+  /* ── Photograph ─────────────────────────────────── */
+  .pl-spot__media {
+    position: relative;
+    aspect-ratio: 4 / 3;
+  }
+
+  .pl-spot__img--main {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center 22%;
+    display: block;
+  }
+
+  /* A second frame, overlapped and offset — the way a lookbook page pins a
+     detail shot over the main plate. */
+  .pl-spot__img--inset {
+    position: absolute;
+    inset-block-end: -3.5rem;
+    inset-inline-end: -3rem;
+    inline-size: clamp(120px, 17vw, 230px);
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border: 6px solid var(--pl-bg);
+    border-radius: 2px;
+    box-shadow: 0 18px 44px rgb(30 26 22 / 0.16);
+  }
+
+  .pl-spot--reverse .pl-spot__img--inset {
+    inset-inline: -3rem auto;
+  }
+
+  /* ── Copy ───────────────────────────────────────── */
+  .pl-spot__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+    max-inline-size: 44ch;
+    padding-inline: clamp(1.25rem, 4.5vw, 4.5rem);
+  }
+
+  .pl-spot__eyebrow {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: var(--font-size--xs, 0.8125rem);
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 58%, transparent);
+  }
+
+  .pl-spot__eyebrow::before {
+    content: "";
+    inline-size: 28px;
+    block-size: 2px;
+    background: var(--pl-sand);
+    flex: none;
+  }
+
+  .pl-spot__title {
+    margin: 0;
+    font-family: var(--font-h2--family, inherit);
+    font-size: clamp(1.75rem, 3.2vw, 2.7rem);
+    font-weight: var(--font-h2--weight, 500);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+  }
+
+  .pl-spot__price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin: 0;
+    font-size: var(--font-size--xl, 1.25rem);
+    font-weight: 600;
+  }
+
+  .pl-spot__was {
+    font-size: var(--font-size--md, 1rem);
+    font-weight: 400;
+    color: color-mix(in srgb, var(--pl-ink) 45%, transparent);
+  }
+
+  .pl-spot__text {
+    margin: 0;
+    font-size: var(--font-size--md, 1rem);
+    line-height: 1.66;
+    color: color-mix(in srgb, var(--pl-ink) 72%, transparent);
+    text-wrap: pretty;
+  }
+
+  .pl-spot__details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0.3rem 0 0;
+    padding: 0;
+    font-size: var(--font-size--sm, 0.875rem);
+  }
+
+  .pl-spot__details li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    color: color-mix(in srgb, var(--pl-ink) 80%, transparent);
+  }
+
+  .pl-spot__details svg {
+    flex: none;
+    margin-block-start: 0.18rem;
+    color: var(--pl-sand);
+  }
+
+  /* ── Actions ────────────────────────────────────── */
+  .pl-spot__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-block-start: 0.7rem;
+  }
+
+  .pl-spot__btn,
+  .pl-spot__ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.9rem 1.9rem;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease;
+  }
+
+  .pl-spot__btn {
+    border: 1px solid var(--pl-ink);
+    background: var(--pl-ink);
+    color: var(--pl-bg);
+  }
+
+  .pl-spot__btn:hover {
+    background: transparent;
+    color: var(--pl-ink);
+  }
+
+  .pl-spot__ghost {
+    border: 1px solid color-mix(in srgb, var(--pl-ink) 30%, transparent);
+    background: transparent;
+    color: var(--pl-ink);
+  }
+
+  .pl-spot__ghost:hover {
+    border-color: var(--pl-ink);
+    background: var(--pl-sand);
+  }
+
+  .pl-spot__btn:focus-visible,
+  .pl-spot__ghost:focus-visible {
+    outline: 2px solid var(--pl-ink);
+    outline-offset: 3px;
+  }
+
+  @media screen and (max-width: 899px) {
+    .pl-spot__inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: clamp(2.5rem, 8vw, 3.5rem);
+    }
+
+    .pl-spot--reverse .pl-spot__inner { direction: ltr; }
+
+    .pl-spot__media { aspect-ratio: 4 / 3; }
+
+    .pl-spot__img--inset {
+      inset-block-end: -2rem;
+      inset-inline-end: 1.25rem;
+      inline-size: 32vw;
+      border-width: 4px;
+    }
+
+    .pl-spot--reverse .pl-spot__img--inset {
+      inset-inline: auto 1.25rem;
+    }
+
+    .pl-spot__body {
+      max-inline-size: none;
+      padding-inline: var(--page-margin, 20px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pl-spot__btn, .pl-spot__ghost { transition: none; }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Featured spotlight",
+  "tag": "section",
+  "class": "pl-spot-section",
+  "disabled_on": { "groups": ["header", "footer"] },
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product" },
+    {
+      "type": "collection",
+      "id": "fallback_collection",
+      "label": "Or feature the first product from",
+      "info": "Used only when no product is chosen above."
+    },
+    {
+      "type": "checkbox",
+      "id": "reverse",
+      "label": "Put the photograph on the right",
+      "default": false
+    },
+    {
+      "type": "checkbox",
+      "id": "show_second_image",
+      "label": "Pin a second photo over it",
+      "info": "Uses the product's second image, if it has one.",
+      "default": true
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "This month's piece" },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "info": "Defaults to the product title."
+    },
+    {
+      "type": "textarea",
+      "id": "text",
+      "label": "Text",
+      "info": "Defaults to the product description."
+    },
+    { "type": "header", "content": "Details" },
+    { "type": "text", "id": "detail_1", "label": "Detail 1", "default": "Hand-stitched leather sole" },
+    { "type": "text", "id": "detail_2", "label": "Detail 2", "default": "Adjustable buckle, room to grow" },
+    { "type": "text", "id": "detail_3", "label": "Detail 3", "default": "Sized EU 17 – 34" },
+    { "type": "header", "content": "Buttons" },
+    { "type": "text", "id": "button_label", "label": "Button label", "default": "View this piece" },
+    {
+      "type": "checkbox",
+      "id": "show_ask",
+      "label": "Show an \"Ask about it\" button",
+      "info": "Opens the AI chat with a question about this product.",
+      "default": true
+    },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background_color", "label": "Background", "default": "#ffffff" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2b2926" },
+    { "type": "color", "id": "accent_color", "label": "Accent", "default": "#d8c9b6" },
+    { "type": "header", "content": "Padding" },
+    {
+      "type": "range", "id": "padding_block_start", "label": "Top",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 88
+    },
+    {
+      "type": "range", "id": "padding_block_end", "label": "Bottom",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 96
+    }
+  ],
+  "presets": [{ "name": "Featured spotlight", "category": "Products" }]
+}
+{% endschema %}

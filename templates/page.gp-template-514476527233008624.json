@@ -1,0 +1,75 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
+{
+  "sections": {
+    "gp_section_514476675946251419": {
+      "settings": {
+        "checksum": "8a9c072db4edc04729b750db3b87c012e7adfcc7472e2e16b4487f0cd1901a23_1_1_0_0__1",
+        "gJrUWkpmxrZDZ_text": "THECOUTURESLUB",
+        "gSgaLdBnBtQHY_label": "TUDENTS GET 10% OFF WITH UNIDAYS",
+        "section_preload": "true"
+      },
+      "type": "gp-section-514476675946251419"
+    },
+    "gp_section_514476676164354918": {
+      "settings": {
+        "checksum": "97e52616cbc626f494ad4b1b1353f9c7d1df2043519b96bf8845030d10aa2777_1_1_0_0__1",
+        "gDCMOnHJhiUWY_errorMessage": "Cannot add product to cart",
+        "gDCMOnHJhiUWY_label": "ADD TO BASKE",
+        "gDCMOnHJhiUWY_outOfStockLabel": "Out of stock",
+        "gDCMOnHJhiUWY_successMessage": "Add product to cart successfully",
+        "gMUMGyQRkuVlL_text": "CROCHET KNITTED CONTRAST STRIPE SHORTS Col.our: Off white 65.00",
+        "gaccordion-item-body-text-accordion_item-row-cjNYBRFZeqPI_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gvHzhQDGUGhmg_childItem_0": "SELECT YOUR SIZE"
+      },
+      "type": "gp-section-514476676164354918"
+    },
+    "gp_section_514476676365681854": {
+      "settings": {
+        "checksum": "7e87e915645ad5aef392ade6758722666df88aad5c873909fa932dea57208fcb_1_1_0_0__1",
+        "gWZguqNalvUFc_text": "COMPLETE THE LOOK",
+        "gaccordion-item-body-text-accordion_item-row-NuCcokbtChUl_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gaccordion-item-body-text-accordion_item-row-SjJdtwngdRLe_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gbprqjkFGbWsX_childItem_0": "Accordion Item 1",
+        "gbprqjkFGbWsX_childItem_1": "Accordion Item 2",
+        "guFVVVAYwSvYf_text": "OFF WHITE I 2 COLOURS"
+      },
+      "type": "gp-section-514476676365681854"
+    },
+    "gp_section_514476676818666480": {
+      "settings": {
+        "checksum": "1b1d8d6ab2c8d60a0dc9c4749c0815c894711d70c5436cabae68c026e97990af_1_1_0_0__1",
+        "gCriaOQJiRqVp_childItem_0": "CUSTOMER SERVICES",
+        "gCriaOQJiRqVp_childItem_1": "Accordion Item 2",
+        "gDCkmZXHRSXsk_srcSet_desktop_src": "https://ucarecdn.com/ee6d5074-1640-4cc7-8933-47c8589c3dee/-/format/auto/",
+        "gGAZrbaaqugqp_text": "Emai",
+        "gGgkdinnoavny_childItem_0": "BRAND",
+        "gLPDMHafiKXOh_text": "Get 10% off your first order. Exclusive offers, early access to launches & sale.",
+        "gYYraqMdjeFCU_text": "@ 2024, The Couture Club",
+        "gZyctJAzckICv_childItem_0": "TERMS & PRIVACY",
+        "gZyctJAzckICv_childItem_1": "Accordion Item 2",
+        "gaccordion-item-body-text-accordion_item-row-NbIfdXKhMVlf_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gaccordion-item-body-text-accordion_item-row-OwOPbiXdTfMw_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gaccordion-item-body-text-accordion_item-row-PvSAsPukKHoT_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gaccordion-item-body-text-accordion_item-row-dGwCcaiMePvh_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gaccordion-item-body-text-i2l087cf582a5_text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "gluMdoMhbXBGU_srcSet_desktop_src": "https://ucarecdn.com/ee6d5074-1640-4cc7-8933-47c8589c3dee/-/format/auto/",
+        "gwyBFtjgHkGoG_text": "United Kingdom (GBP )"
+      },
+      "type": "gp-section-514476676818666480"
+    }
+  },
+  "order": [
+    "gp_section_514476675946251419",
+    "gp_section_514476676164354918",
+    "gp_section_514476676365681854",
+    "gp_section_514476676818666480"
+  ]
+}

@@ -1,0 +1,170 @@
+{% doc %}
+  AI Support Chat — the floating chat popup.
+
+  All markup and behaviour live in `assets/ai-support-chat.js`;
+  `sections/ai-support-chat.liquid` is a thin wrapper that passes theme-editor
+  settings in. Render this snippet directly from `layout/theme.liquid` if you
+  want the widget on every page without going through a section group.
+
+  The endpoint streams its reply back as Server-Sent Events, so the shopper
+  sees words appear as the agent writes them.
+
+  @param {string} endpoint - The support chat URL (required), ending /api/v1/support/chat.
+  @param {string} [heading] - Panel header title.
+  @param {string} [subheading] - Status label shown once the agent has replied.
+  @param {string} [launcher_label] - Label revealed when the floating button is hovered.
+  @param {string} [launcher_label_collection] - That label on collection pages.
+  @param {string} [launcher_label_product] - That label on product pages.
+  @param {string} [welcome_heading] - Big heading at the top of the conversation.
+  @param {string} [placeholder] - Composer placeholder. Defaults to "Message {heading}".
+  @param {collection_list} [categories] - Collections offered as cards under the welcome.
+      Leave empty to use every collection the assistant's own /collections route returns.
+  @param {string} [collections_endpoint] - Override for that route. Defaults to the chat
+      endpoint with /chat swapped for /collections.
+  @param {string} [feedback_endpoint] - Where a thumbs-up/down is POSTed. Without it the
+      rating is only dispatched as an `aisc:rating` DOM event.
+  @param {string} [category_prompt] - What tapping a card asks. Use {title} for the collection name.
+  @param {number} [product_preview] - Products shown before a list folds behind "Show N more".
+  @param {string} [recs_heading] - Heading above the recommendations after an add to cart.
+  @param {string} [thinking] - Shown with a counting ellipsis while the assistant works.
+  @param {string} [terms_url] - Terms link in the header menu.
+  @param {string} [privacy_url] - Privacy link in the header menu.
+  @param {string} [launcher_position] - 'right' (default) or 'center' for a centred, always-open pill.
+  @param {string} [launcher_center_templates] - Comma-separated templates that use the centred pill.
+  @param {string} [launcher_right_templates] - Comma-separated templates that use the corner instead.
+  @param {string} [greeting] - First message the assistant shows.
+  @param {string} [chips] - Quick replies, separated by a pipe character.
+  @param {image} [logo] - Logo shown in the header avatar. Falls back to a monogram.
+  @param {string} [notice] - Small privacy line above the conversation.
+  @param {string} [notice_link_text] - Link label appended to the notice.
+  @param {string} [notice_link_url] - Where that link points.
+  @param {string} [cart_action] - What "View cart" does: 'drawer' or 'page'.
+  @param {boolean} [send_cart] - Send the shopper's cart with each message.
+  @param {boolean} [send_customer] - Send the signed-in shopper's details with each message.
+  @param {string} [outfit_heading] - Title above a complete look.
+  @param {string} [outfit_cta] - Label on the add-the-whole-look button.
+  @param {boolean} [discount_codes] - Let shoppers enter a referral or discount code.
+  @param {string} [accent] - Accent colour, any CSS colour.
+  @param {string} [accent_text] - Text colour used on the accent background.
+
+  @example
+  {% render 'ai-support-chat', endpoint: 'https://example.up.railway.app/api/v1/support/chat' %}
+{% enddoc %}
+
+{% liquid
+  assign aisc_endpoint = endpoint | default: settings.ai_chat_endpoint
+  assign aisc_heading = heading | default: shop.name
+  assign aisc_subheading = subheading | default: 'Usually replies instantly'
+  assign aisc_greeting = greeting | default: 'Hi {name}! I can help with orders, shipping, returns and products. What do you need?'
+  assign aisc_chips = chips
+  assign aisc_cart_action = cart_action | default: 'drawer'
+  assign aisc_accent = accent | default: '#ffffff'
+  assign aisc_accent_text = accent_text | default: '#16181b'
+  assign aisc_welcome = 'Welcome to ' | append: aisc_heading
+  assign aisc_placeholder = 'Message ' | append: aisc_heading
+  assign aisc_cat_prompt = category_prompt | default: 'Tell me more about {title}'
+%}
+
+{%- comment -%}
+  The collection shelf under the welcome. Built here rather than in the script
+  because only Liquid can turn a merchant's collection picks into image URLs at
+  the size they will actually be shown.
+{%- endcomment -%}
+{%- capture aisc_categories -%}
+[
+  {%- for aisc_cat in categories limit: 8 -%}
+    {%- assign aisc_cat_img = aisc_cat.image | default: aisc_cat.products.first.featured_image -%}
+    {%- unless forloop.first %},{% endunless -%}
+    {"title": {{ aisc_cat.title | json }},
+     "image": {% if aisc_cat_img != blank %}{{ aisc_cat_img | image_url: width: 320 | json }}{% else %}""{% endif %}}
+  {%- endfor -%}
+]
+{%- endcapture -%}
+
+{% if aisc_endpoint != blank %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap">
+  {{ 'ai-support-chat.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'ai-support-chat.js' | asset_url }}" defer></script>
+
+  <ai-support-chat
+    data-endpoint="{{ aisc_endpoint }}"
+    data-title="{{ aisc_heading | escape }}"
+    data-subtitle="{{ aisc_subheading | escape }}"
+    data-launcher-label="{{ launcher_label | default: 'Shop with AI' | escape }}"
+    data-launcher-label-collection="{{ launcher_label_collection | escape }}"
+    data-launcher-label-product="{{ launcher_label_product | escape }}"
+    data-position="{{ launcher_position | default: 'right' }}"
+    data-welcome-heading="{{ welcome_heading | default: aisc_welcome | escape }}"
+    data-placeholder="{{ placeholder | default: aisc_placeholder | escape }}"
+    {%- if collections_endpoint != blank %}
+      data-collections-endpoint="{{ collections_endpoint }}"
+    {%- endif %}
+    {%- if feedback_endpoint != blank %}
+      data-feedback-endpoint="{{ feedback_endpoint }}"
+    {%- endif %}
+    data-product-preview="{{ product_preview | default: 3 }}"
+    data-recs-heading="{{ recs_heading | default: 'You might also like' | escape }}"
+    data-thinking="{{ thinking | default: 'Thinking this through, just a moment' | escape }}"
+    data-center-templates="{{ launcher_center_templates | escape }}"
+    data-right-templates="{{ launcher_right_templates | escape }}"
+    {%- if categories != blank %}
+      data-categories="{{ aisc_categories | strip_newlines | escape }}"
+      data-category-prompt="{{ aisc_cat_prompt | escape }}"
+    {%- endif %}
+    {%- if terms_url != blank %}
+      data-terms-url="{{ terms_url }}"
+    {%- endif %}
+    {%- if privacy_url != blank %}
+      data-privacy-url="{{ privacy_url }}"
+    {%- endif %}
+    data-greeting="{{ aisc_greeting | escape }}"
+    data-chips="{{ aisc_chips | escape }}"
+    data-cart-action="{{ aisc_cart_action }}"
+    data-outfit-heading="{{ outfit_heading | default: 'Complete the Look' | escape }}"
+    data-outfit-cta="{{ outfit_cta | default: 'Add Complete Look to Bag' | escape }}"
+    {%- if discount_codes == true %}
+      data-discount-codes="true"
+    {%- endif %}
+    {%- if send_cart == false %}
+      data-send-cart="false"
+    {%- endif %}
+    data-template="{{ template }}"
+    data-country="{{ localization.country.iso_code }}"
+    {%- comment %}
+      The currency the shopper is actually being quoted, which is not always the
+      shop's own — a market can present prices in something else entirely.
+    {%- endcomment %}
+    data-currency="{{ cart.currency.iso_code | default: shop.currency }}"
+    data-shop-currency="{{ shop.currency }}"
+    data-locale="{{ request.locale.iso_code }}"
+    {%- if logo != blank %}
+      data-logo="{{ logo | image_url: width: 96 }}"
+    {%- endif %}
+    {%- if notice != blank %}
+      data-notice="{{ notice | escape }}"
+      {%- if notice_link_text != blank and notice_link_url != blank %}
+        data-notice-label="{{ notice_link_text | escape }}"
+        data-notice-href="{{ notice_link_url }}"
+      {%- endif %}
+    {%- endif %}
+    {%- if customer and send_customer != false %}
+      data-customer-id="{{ customer.id }}"
+      data-customer-email="{{ customer.email }}"
+      data-customer-name="{{ customer.first_name | escape }}"
+      {%- comment %}
+        Most stores leave customer.phone empty and keep the number on the
+        default address, so fall back rather than sending nothing.
+      {%- endcomment %}
+      {%- assign aisc_phone = customer.phone | default: customer.default_address.phone %}
+      {%- if aisc_phone != blank %}
+        data-customer-phone="{{ aisc_phone | escape }}"
+      {%- endif %}
+    {%- endif %}
+    {%- if template.name == 'product' and product %}
+      data-product-title="{{ product.title | escape }}"
+    {%- endif %}
+    style="--aisc-accent: {{ aisc_accent }}; --aisc-accent-text: {{ aisc_accent_text }};"
+  ></ai-support-chat>
+{% endif %}
