@@ -17,7 +17,7 @@
         "announcement_BxgCk9": {
           "type": "_announcement",
           "settings": {
-            "text": "Free shipping on orders over ₹999",
+            "text": "Welcome to LittleNest",
             "link": "",
             "font": "var(--font-subheading--family)",
             "font_size": "0.75rem",
