@@ -157,7 +157,14 @@
   </div>
 </div>
 
-{%- comment -%} Target of the hero button: the start of the product grid below. {%- endcomment -%}
+{%- comment -%}
+  Target of the hero button: the start of the product grid below. Its scroll margin
+  reads --header-height; header.js does not keep that value fresh on this store
+  (its connectedCallback stops at a missing required ref), so measure it once here.
+{%- endcomment -%}
+{%- if section.settings.button_label != blank -%}
+  {% render 'measure-header-heights' %}
+{%- endif -%}
 <span id="{{ anchor_id }}" class="pl-chero__anchor"></span>
 
 {% stylesheet %}
@@ -232,7 +239,8 @@
     padding: 0;
     list-style: none;
     font-size: var(--font-size--xs, 0.8125rem);
-    color: color-mix(in srgb, var(--pl-ink) 62%, transparent);
+    /* 80% keeps small text above 4.5:1 on the cream and over the sand blob. */
+    color: color-mix(in srgb, var(--pl-ink) 80%, transparent);
   }
 
   .pl-chero__crumbs li { overflow-wrap: anywhere; }
@@ -240,7 +248,6 @@
   .pl-chero__crumbs li + li::before {
     content: "/";
     margin-inline-end: 0.35rem;
-    opacity: 0.6;
   }
 
   .pl-chero__crumbs a {
@@ -261,7 +268,7 @@
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--pl-ink) 62%, transparent);
+    color: color-mix(in srgb, var(--pl-ink) 80%, transparent);
   }
 
   .pl-chero__eyebrow::before {
@@ -364,8 +371,16 @@
   }
 
   /* ── Photograph ─────────────────────────────────── */
+  /*
+    The photo stays a true 4:5 portrait: its height is capped by limiting the
+    column width (496px wide = 620px tall) rather than with max-block-size,
+    which would squash the ratio. The inset keeps its corner overlap.
+  */
   .pl-chero__media {
     position: relative;
+    justify-self: end;
+    inline-size: 100%;
+    max-inline-size: calc(496px + 2.5rem);
     min-inline-size: 0;
     padding-block-end: 2.5rem;
     padding-inline-start: 2.5rem;
@@ -375,7 +390,6 @@
   .pl-chero__frame {
     overflow: hidden;
     aspect-ratio: 4 / 5;
-    max-block-size: 620px;
     inline-size: 100%;
     border-radius: 28px;
     box-shadow: 0 24px 60px rgb(30 26 22 / 0.14);
@@ -404,7 +418,7 @@
 
   .pl-chero__anchor {
     display: block;
-    scroll-margin-block-start: var(--header-height, 0px);
+    scroll-margin-block-start: calc(var(--header-height, 0px) + 0.75rem);
   }
 
   @keyframes pl-chero-rise {
@@ -426,6 +440,8 @@
     }
 
     .pl-chero__media {
+      justify-self: stretch;
+      max-inline-size: none;
       padding-block-end: 1.75rem;
       padding-inline-start: 1.25rem;
     }
