@@ -49,6 +49,12 @@
   {%- assign effective_hover_bg = hover_parts[0] -%}
   {%- assign effective_hover_text = hover_parts[1] -%}
   {%- assign effective_hover_border = hover_parts[2] -%}
+  {%- if block_settings.proportions == 'pill-arrow' -%}
+    {%- comment -%} Pill-arrow mirrors the Ask the stylist CTA: hover only lifts, colours stay put. {%- endcomment -%}
+    {%- assign effective_hover_bg = 'rgb(' | append: effective_background_color.rgba | append: ')' -%}
+    {%- assign effective_hover_text = 'rgb(' | append: effective_text_color.rgba | append: ')' -%}
+    {%- assign effective_hover_border = 'rgb(' | append: effective_border_color.rgba | append: ')' -%}
+  {%- endif -%}
   {% style %}
     .button-custom--{{ block_id }} {
       --button-background-color: rgb({{ effective_background_color.rgba }});
