@@ -17,6 +17,12 @@
     padding-block: var(--padding-block-start) var(--padding-block-end);
     padding-inline: var(--padding-inline-start) var(--padding-inline-end);
     overflow: hidden;
+    /* Soft card elevation; follows the active color scheme. Corner radius comes from the card's border_radius setting. */
+    box-shadow: var(
+      --product-card-shadow,
+      0 2px 10px rgb(var(--color-foreground-rgb) / var(--opacity-10)),
+      0 1px 2px rgb(var(--color-foreground-rgb) / var(--opacity-5))
+    );
   }
 
   /*
