@@ -151,10 +151,10 @@
             "border_width": 1,
             "border_opacity": 100,
             "border_radius": 10,
-            "padding-block-start": 0,
-            "padding-block-end": 0,
-            "padding-inline-start": 0,
-            "padding-inline-end": 0
+            "padding-block-start": 12,
+            "padding-block-end": 12,
+            "padding-inline-start": 12,
+            "padding-inline-end": 12
           },
           "blocks": {
             "product_card_gallery_PEPpfq": {
