@@ -1,0 +1,522 @@
+{% comment %}
+  Section contract.
+  Collection hero — the opening band of a collection page: breadcrumb, the
+  collection title as the page h1, its description, a piece count and a button
+  that jumps to the product grid, beside a rounded photograph.
+  The photo is the section's image setting, else the collection image, else the
+  collection's first product photo, so it renders with real imagery straight away.
+  @example
+  <!-- templates/collection.json: section "collection_hero", ordered before "main" -->
+{% endcomment %}
+
+{%- liquid
+  assign hero_collection = collection
+  assign hero_products = hero_collection.products
+
+  assign primary = section.settings.image
+  if primary == blank
+    assign primary = hero_collection.image
+  endif
+  if primary == blank
+    assign primary = hero_products.first.featured_image
+  endif
+
+  comment
+    The pinned detail frame uses a product photo other than the main one.
+  endcomment
+  assign secondary = blank
+  if section.settings.show_inset
+    for p in hero_products limit: 4
+      if p.featured_image != blank and p.featured_image.src != primary.src
+        assign secondary = p.featured_image
+        break
+      endif
+    endfor
+  endif
+
+  assign title = hero_collection.title | default: section.settings.fallback_title
+  assign primary_alt = primary.alt | default: title
+  assign description = section.settings.text
+  if description == blank
+    assign description = hero_collection.description
+  endif
+
+  assign count = hero_collection.products_count | default: 0
+  assign anchor_id = 'CollectionProducts-' | append: section.id
+
+  assign chip_count = 0
+  for i in (1..3)
+    assign key = 'chip_' | append: i
+    if section.settings[key] != blank
+      assign chip_count = chip_count | plus: 1
+    endif
+  endfor
+
+  if section.index == 1 or section.index == 2
+    assign hero_loading = 'eager'
+    assign hero_priority = 'high'
+  else
+    assign hero_loading = 'lazy'
+    assign hero_priority = 'auto'
+  endif
+-%}
+
+<div
+  class="pl-chero{% if primary == blank %} pl-chero--no-media{% endif %}"
+  style="
+    --pl-bg: {{ section.settings.background_color }};
+    --pl-ink: {{ section.settings.text_color }};
+    --pl-sand: {{ section.settings.accent_color }};
+    --pl-pad-start: {{ section.settings.padding_block_start }}px;
+    --pl-pad-end: {{ section.settings.padding_block_end }}px;
+  "
+>
+  <span class="pl-chero__shape pl-chero__shape--one" aria-hidden="true"></span>
+  <span class="pl-chero__shape pl-chero__shape--two" aria-hidden="true"></span>
+
+  <div class="pl-chero__inner">
+    <div class="pl-chero__body">
+      {%- if section.settings.show_breadcrumb -%}
+        <nav class="pl-chero__crumbs" aria-label="{{ 'content.collection_hero_breadcrumb' | t }}">
+          <ol>
+            <li><a href="{{ routes.root_url }}">{{ 'content.collection_hero_home' | t }}</a></li>
+            <li><a href="{{ routes.collections_url }}">{{ 'content.collection_hero_collections' | t }}</a></li>
+            <li aria-current="page">{{ title | escape }}</li>
+          </ol>
+        </nav>
+      {%- endif -%}
+
+      {%- if section.settings.eyebrow != blank -%}
+        <p class="pl-chero__eyebrow">{{ section.settings.eyebrow | escape }}</p>
+      {%- endif -%}
+
+      <h1 class="pl-chero__title">{{ title | escape }}</h1>
+
+      {%- if description != blank -%}
+        <div class="pl-chero__text rte">{{ description }}</div>
+      {%- endif -%}
+
+      <div class="pl-chero__actions">
+        {%- if section.settings.button_label != blank -%}
+          <a class="pl-chero__btn" href="#{{ anchor_id }}">
+            {{ section.settings.button_label | escape }}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          </a>
+        {%- endif -%}
+
+        {%- if section.settings.show_count and count > 0 -%}
+          <p class="pl-chero__count">{{ 'content.collection_hero_pieces' | t: count: count }}</p>
+        {%- endif -%}
+      </div>
+
+      {%- if chip_count > 0 -%}
+        <ul class="pl-chero__chips">
+          {%- for i in (1..3) -%}
+            {%- assign key = 'chip_' | append: i -%}
+            {%- if section.settings[key] != blank -%}
+              <li>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                {{ section.settings[key] | escape }}
+              </li>
+            {%- endif -%}
+          {%- endfor -%}
+        </ul>
+      {%- endif -%}
+    </div>
+
+    {%- if primary != blank -%}
+      <div class="pl-chero__media">
+        <div class="pl-chero__frame">
+          {{
+            primary
+            | image_url: width: 1600
+            | image_tag:
+              class: 'pl-chero__img',
+              widths: '400, 600, 800, 1000, 1200, 1600',
+              sizes: '(min-width: 900px) 46vw, 100vw',
+              alt: primary_alt,
+              loading: hero_loading,
+              fetchpriority: hero_priority
+          }}
+        </div>
+
+        {%- if secondary != blank -%}
+          {{
+            secondary
+            | image_url: width: 600
+            | image_tag:
+              class: 'pl-chero__inset',
+              widths: '200, 300, 450, 600',
+              sizes: '(min-width: 900px) 14vw, 30vw',
+              alt: '',
+              loading: hero_loading
+          }}
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+</div>
+
+{%- comment -%} Target of the hero button: the start of the product grid below. {%- endcomment -%}
+<span id="{{ anchor_id }}" class="pl-chero__anchor"></span>
+
+{% stylesheet %}
+  .pl-chero {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--pl-bg);
+    color: var(--pl-ink);
+    padding-block: var(--pl-pad-start) var(--pl-pad-end);
+  }
+
+  /* Soft decorative blobs, the same sand tone as the accent. */
+  .pl-chero__shape {
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    background: var(--pl-sand);
+    pointer-events: none;
+  }
+
+  .pl-chero__shape--one {
+    inline-size: clamp(220px, 32vw, 460px);
+    aspect-ratio: 1;
+    inset-block-start: -18%;
+    inset-inline-start: -8%;
+    opacity: 0.45;
+  }
+
+  .pl-chero__shape--two {
+    inline-size: clamp(120px, 14vw, 200px);
+    aspect-ratio: 1;
+    inset-block-end: -10%;
+    inset-inline-start: 38%;
+    opacity: 0.35;
+  }
+
+  .pl-chero__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 4.5rem);
+    max-inline-size: var(--page-width, 1400px);
+    margin-inline: auto;
+    padding-inline: var(--page-margin, 20px);
+  }
+
+  .pl-chero--no-media .pl-chero__inner {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  /* ── Copy ───────────────────────────────────────── */
+  .pl-chero__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    min-inline-size: 0;
+    max-inline-size: 46ch;
+    animation: pl-chero-rise 0.7s ease both;
+  }
+
+  .pl-chero--no-media .pl-chero__body { align-items: center; }
+
+  .pl-chero__crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size--xs, 0.8125rem);
+    color: color-mix(in srgb, var(--pl-ink) 62%, transparent);
+  }
+
+  .pl-chero__crumbs li { overflow-wrap: anywhere; }
+
+  .pl-chero__crumbs li + li::before {
+    content: "/";
+    margin-inline-end: 0.35rem;
+    opacity: 0.6;
+  }
+
+  .pl-chero__crumbs a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .pl-chero__crumbs a:hover { color: var(--pl-ink); text-decoration: underline; }
+
+  .pl-chero__crumbs [aria-current] { color: var(--pl-ink); }
+
+  .pl-chero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0;
+    font-size: var(--font-size--xs, 0.8125rem);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--pl-ink) 62%, transparent);
+  }
+
+  .pl-chero__eyebrow::before {
+    content: "";
+    flex: none;
+    inline-size: 28px;
+    block-size: 2px;
+    background: currentColor;
+  }
+
+  .pl-chero__title {
+    margin: 0;
+    font-family: var(--font-h1--family, inherit);
+    font-size: clamp(2.25rem, 5vw, 4rem);
+    font-weight: var(--font-h1--weight, 600);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .pl-chero__text {
+    font-size: var(--font-size--md, 1rem);
+    line-height: 1.65;
+    color: color-mix(in srgb, var(--pl-ink) 74%, transparent);
+    text-wrap: pretty;
+  }
+
+  .pl-chero__text > * { margin-block: 0 0.6em; }
+  .pl-chero__text > :last-child { margin-block-end: 0; }
+
+  /* ── Actions ────────────────────────────────────── */
+  .pl-chero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    margin-block-start: 0.5rem;
+  }
+
+  .pl-chero__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-block-size: 48px;
+    padding: 0.85rem 1.9rem;
+    border: 1px solid var(--pl-ink);
+    border-radius: 999px;
+    background: var(--pl-ink);
+    color: var(--pl-bg);
+    font-size: var(--font-size--sm, 0.875rem);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    transition: background-color 0.22s ease, color 0.22s ease;
+  }
+
+  .pl-chero__btn svg { transition: transform 0.22s ease; }
+
+  .pl-chero__btn:hover {
+    background: transparent;
+    color: var(--pl-ink);
+  }
+
+  .pl-chero__btn:hover svg { transform: translateY(2px); }
+
+  .pl-chero__btn:focus-visible {
+    outline: 2px solid var(--pl-ink);
+    outline-offset: 3px;
+  }
+
+  .pl-chero__count {
+    margin: 0;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--pl-ink) 22%, transparent);
+    border-radius: 999px;
+    font-size: var(--font-size--sm, 0.875rem);
+    color: color-mix(in srgb, var(--pl-ink) 80%, transparent);
+  }
+
+  .pl-chero__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size--sm, 0.875rem);
+    color: color-mix(in srgb, var(--pl-ink) 80%, transparent);
+  }
+
+  .pl-chero--no-media .pl-chero__actions,
+  .pl-chero--no-media .pl-chero__chips,
+  .pl-chero--no-media .pl-chero__crumbs ol { justify-content: center; }
+
+  .pl-chero__chips li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  /* ── Photograph ─────────────────────────────────── */
+  .pl-chero__media {
+    position: relative;
+    min-inline-size: 0;
+    padding-block-end: 2.5rem;
+    padding-inline-start: 2.5rem;
+    animation: pl-chero-rise 0.8s 0.1s ease both;
+  }
+
+  .pl-chero__frame {
+    overflow: hidden;
+    aspect-ratio: 4 / 5;
+    max-block-size: 620px;
+    inline-size: 100%;
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgb(30 26 22 / 0.14);
+  }
+
+  .pl-chero__img {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+  }
+
+  .pl-chero__inset {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 0;
+    inline-size: clamp(110px, 14vw, 190px);
+    block-size: auto;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border: 6px solid var(--pl-bg);
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgb(30 26 22 / 0.18);
+  }
+
+  .pl-chero__anchor {
+    display: block;
+    scroll-margin-block-start: var(--header-height, 0px);
+  }
+
+  @keyframes pl-chero-rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media screen and (max-width: 899px) {
+    .pl-chero__inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2rem;
+    }
+
+    .pl-chero__body { max-inline-size: none; }
+
+    .pl-chero__frame {
+      aspect-ratio: 4 / 3;
+      border-radius: 20px;
+    }
+
+    .pl-chero__media {
+      padding-block-end: 1.75rem;
+      padding-inline-start: 1.25rem;
+    }
+
+    .pl-chero__inset {
+      inline-size: 28vw;
+      border-width: 4px;
+      border-radius: 14px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pl-chero__body,
+    .pl-chero__media { animation: none; }
+
+    .pl-chero__btn,
+    .pl-chero__btn svg { transition: none; }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Collection hero",
+  "tag": "section",
+  "class": "pl-chero-section",
+  "enabled_on": { "templates": ["collection"] },
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Image",
+      "info": "Defaults to the collection image, then the first product's photo."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_inset",
+      "label": "Pin a second product photo over it",
+      "default": true
+    },
+    { "type": "header", "content": "Text" },
+    {
+      "type": "checkbox",
+      "id": "show_breadcrumb",
+      "label": "Show breadcrumb",
+      "default": true
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "The LittleNest edit" },
+    {
+      "type": "text",
+      "id": "fallback_title",
+      "label": "Fallback heading",
+      "info": "Only used when the collection has no title.",
+      "default": "Our collection"
+    },
+    {
+      "type": "richtext",
+      "id": "text",
+      "label": "Text",
+      "info": "Defaults to the collection description."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_count",
+      "label": "Show number of pieces",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "info": "Scrolls to the products. Leave blank to hide.",
+      "default": "Shop the collection"
+    },
+    { "type": "header", "content": "Highlights" },
+    { "type": "text", "id": "chip_1", "label": "Highlight 1", "default": "Soft, breathable fabrics" },
+    { "type": "text", "id": "chip_2", "label": "Highlight 2", "default": "Thoughtfully made" },
+    { "type": "text", "id": "chip_3", "label": "Highlight 3", "default": "New pieces every season" },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "background_color", "label": "Background", "default": "#f7f2ec" },
+    { "type": "color", "id": "text_color", "label": "Text", "default": "#2b2926" },
+    { "type": "color", "id": "accent_color", "label": "Accent shapes", "default": "#ead9c4" },
+    { "type": "header", "content": "Padding" },
+    {
+      "type": "range", "id": "padding_block_start", "label": "Top",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 56
+    },
+    {
+      "type": "range", "id": "padding_block_end", "label": "Bottom",
+      "min": 0, "max": 160, "step": 4, "unit": "px", "default": 64
+    }
+  ],
+  "presets": [{ "name": "Collection hero", "category": "Collection" }]
+}
+{% endschema %}

@@ -90,6 +90,27 @@
         "gradient_direction": "to top",
         "padding-block-start": 48,
         "padding-block-end": 48
+      },
+      "disabled": true
+    },
+    "collection_hero": {
+      "type": "collection-hero",
+      "settings": {
+        "show_inset": true,
+        "show_breadcrumb": true,
+        "eyebrow": "The LittleNest edit",
+        "fallback_title": "Our collection",
+        "text": "",
+        "show_count": true,
+        "button_label": "Shop the collection",
+        "chip_1": "Soft, breathable fabrics",
+        "chip_2": "Thoughtfully made",
+        "chip_3": "New pieces every season",
+        "background_color": "#f7f2ec",
+        "text_color": "#2b2926",
+        "accent_color": "#ead9c4",
+        "padding_block_start": 56,
+        "padding_block_end": 64
       }
     },
     "main": {
@@ -216,6 +237,7 @@
     }
   },
   "order": [
+    "collection_hero",
     "section",
     "main"
   ]
