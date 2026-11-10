@@ -729,6 +729,7 @@
     // Icon option for washing machine or laundry symbol
     "washing": "Washing",
     "wide": "Wide",
+    "wide_slim": "Wide and slim",
     "youtube": "YouTube",
     "with_hints": "With hints",
     "below_media": "Below media"
@@ -782,6 +783,7 @@
     "bottom_row": "Bottom row",
     "bottom_padding": "Bottom padding",
     "button": "Button",
+    "button_proportions": "Proportions",
     "button_text_case": "Text case",
     "card_height": "Card height",
     "card_hover_effect": "Card hover effect",

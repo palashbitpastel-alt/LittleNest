@@ -22,6 +22,7 @@
     size-style
     {{ block_settings.style_class }}
     {{ block_settings.style_class }}--{{ block.id }}
+    {% if block_settings.proportions == 'wide-slim' and block_settings.style_class != 'button-unstyled' %}button--wide-slim{% endif %}
   "
   style="{% render 'size-style', settings: block_settings %}"
   {%- if block_settings.open_in_new_tab -%}
@@ -32,3 +33,14 @@
 >
   {{ block_settings.label }}
 </a>
+
+{% stylesheet %}
+  /* Wide and slim proportions: wider horizontal padding with a shorter height. */
+  .button--wide-slim {
+    --button-padding-block: 10px;
+    --button-padding-inline: 56px;
+
+    min-inline-size: min(12rem, 100%);
+    min-block-size: 44px;
+  }
+{% endstylesheet %}

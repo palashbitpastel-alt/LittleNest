@@ -90,6 +90,23 @@
     },
     {
       "type": "select",
+      "id": "proportions",
+      "label": "t:settings.button_proportions",
+      "options": [
+        {
+          "value": "default",
+          "label": "t:options.default"
+        },
+        {
+          "value": "wide-slim",
+          "label": "t:options.wide_slim"
+        }
+      ],
+      "default": "default",
+      "visible_if": "{{ block.settings.style_class != \"button-unstyled\" }}"
+    },
+    {
+      "type": "select",
       "id": "width",
       "label": "t:settings.width_desktop",
       "options": [
