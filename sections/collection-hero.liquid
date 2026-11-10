@@ -225,7 +225,7 @@
     align-items: flex-start;
     gap: 1rem;
     min-inline-size: 0;
-    max-inline-size: 46ch;
+    max-inline-size: 620px;
     animation: pl-chero-rise 0.7s ease both;
   }
 
@@ -373,14 +373,14 @@
   /* ── Photograph ─────────────────────────────────── */
   /*
     The photo stays a true 4:5 portrait: its height is capped by limiting the
-    column width (496px wide = 620px tall) rather than with max-block-size,
+    column width (400px wide = 500px tall) rather than with max-block-size,
     which would squash the ratio. The inset keeps its corner overlap.
   */
   .pl-chero__media {
     position: relative;
     justify-self: end;
     inline-size: 100%;
-    max-inline-size: calc(496px + 2.5rem);
+    max-inline-size: calc(400px + 2.5rem);
     min-inline-size: 0;
     padding-block-end: 2.5rem;
     padding-inline-start: 2.5rem;
