@@ -14,8 +14,11 @@
     align-items: var(--product-card-alignment);
     text-decoration: none;
     color: var(--color, var(--color-foreground));
-    padding-block: var(--padding-block-start) var(--padding-block-end);
-    padding-inline: var(--padding-inline-start) var(--padding-inline-end);
+    /* Extra inset for the text content area (title, price…) on top of the merchant padding settings. */
+    --product-card-content-inset: var(--padding-md);
+    padding-block: var(--padding-block-start) calc(var(--padding-block-end) + var(--product-card-content-inset));
+    padding-inline: calc(var(--padding-inline-start) + var(--product-card-content-inset))
+      calc(var(--padding-inline-end) + var(--product-card-content-inset));
     overflow: hidden;
     /* Soft card elevation; follows the active color scheme. Corner radius comes from the card's border_radius setting. */
     box-shadow: var(
@@ -23,6 +26,16 @@
       0 2px 10px rgb(var(--color-foreground-rgb) / var(--opacity-10)),
       0 1px 2px rgb(var(--color-foreground-rgb) / var(--opacity-5))
     );
+  }
+
+  /* The content inset applies to the text area only; media stays edge-to-edge with the card. */
+  .product-grid__card > .card-gallery {
+    margin-inline: calc(-1 * var(--product-card-content-inset));
+  }
+
+  /* Zoom-out shows media only and uses its own card padding. */
+  [product-grid-view='zoom-out'] .product-grid__card.product-grid__card {
+    --product-card-content-inset: 0px;
   }
 
   /*
