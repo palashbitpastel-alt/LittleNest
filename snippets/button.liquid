@@ -23,6 +23,7 @@
     {{ block_settings.style_class }}
     {{ block_settings.style_class }}--{{ block.id }}
     {% if block_settings.proportions == 'wide-slim' and block_settings.style_class != 'button-unstyled' %}button--wide-slim{% endif %}
+    {% if block_settings.proportions == 'pill-arrow' and block_settings.style_class != 'button-unstyled' %}button--pill-arrow{% endif %}
   "
   style="{% render 'size-style', settings: block_settings %}"
   {%- if block_settings.open_in_new_tab -%}
@@ -32,6 +33,23 @@
   {{ block.shopify_attributes }}
 >
   {{ block_settings.label }}
+  {%- if block_settings.proportions == 'pill-arrow' and block_settings.style_class != 'button-unstyled' -%}
+    <svg
+      class="button__arrow"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+    </svg>
+  {%- endif -%}
 </a>
 
 {% stylesheet %}
@@ -42,5 +60,74 @@
 
     min-inline-size: min(12rem, 100%);
     min-block-size: 44px;
+  }
+
+  /* Pill with arrow: matches the "Ask the stylist" call to action (sections/ask-stylist.liquid). */
+  /* Compound selector so these win over the base.css button rules regardless of load order. */
+  :is(.button, .button-secondary, .button-custom).button--pill-arrow {
+    --button-padding-block: 0.9rem;
+    --button-padding-inline: 1.7rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-block-size: 44px;
+    border-radius: 999px;
+    font-family: var(--font-paragraph--family);
+    font-size: var(--font-size--sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: none;
+    transition: color var(--animation-speed) var(--animation-easing),
+      box-shadow var(--animation-speed) var(--animation-easing),
+      background-color var(--animation-speed) var(--animation-easing),
+      transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  .button--pill-arrow:hover {
+    transform: translateY(-2px);
+  }
+
+  .button--pill-arrow:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .button--pill-arrow .button__arrow {
+    flex: none;
+    transition: transform 0.2s ease;
+  }
+
+  .button--pill-arrow:hover .button__arrow {
+    transform: translateX(3px);
+  }
+
+  [dir='rtl'] .button--pill-arrow .button__arrow {
+    transform: scaleX(-1);
+  }
+
+  [dir='rtl'] .button--pill-arrow:hover .button__arrow {
+    transform: scaleX(-1) translateX(3px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button--pill-arrow,
+    .button--pill-arrow .button__arrow {
+      transition: none;
+    }
+
+    .button--pill-arrow:hover,
+    .button--pill-arrow:active {
+      transform: none;
+    }
+
+    .button--pill-arrow:hover .button__arrow {
+      transform: none;
+    }
+
+    [dir='rtl'] .button--pill-arrow:hover .button__arrow {
+      transform: scaleX(-1);
+    }
   }
 {% endstylesheet %}
