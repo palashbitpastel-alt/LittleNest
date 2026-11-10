@@ -66,6 +66,24 @@
     }
   }
 
+  /*
+    Desktop scales the card title and price down from their block font size
+    settings; mobile keeps the configured size. The size arrives as an inline
+    --font-size, so the scaled value is applied to the block and its children.
+  */
+  @media screen and (min-width: 750px) {
+    .product-grid__card {
+      --product-card-text-scale: 0.9;
+    }
+
+    .product-grid__card :is([ref='productTitleLink'] > .text-block, product-price.text-block).custom-font-size,
+    .product-grid__card
+      :is([ref='productTitleLink'] > .text-block, product-price.text-block).custom-font-size
+      > * {
+      font-size: calc(var(--font-size) * var(--product-card-text-scale));
+    }
+  }
+
   .product-card__placeholder-image svg {
     height: 100%;
   }
